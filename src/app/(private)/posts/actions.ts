@@ -1,0 +1,85 @@
+"use server";
+
+import { redirect } from "next/navigation";
+import { auth } from "../../../../auth";
+import { prisma } from "@/lib/database/prisma";
+import {
+  getCurrentCompanyIdForUser,
+  hasFeatureLimitAvailable
+} from "@/lib/billing/usage";
+import {
+  buildPostGeneratorPrompt,
+  generatePostWithOpenAI
+} from "@/lib/openai/post-generator";
+
+function readRequiredField(formData: FormData, field: string) {
+  const value = String(formData.get(field) ?? "").trim();
+
+  if (!value) {
+    redirect("/posts?error=invalid");
+  }
+
+  return value;
+}
+
+async function getCurrentCompanyContext() {
+  const session = await auth();
+
+  if (!session?.user?.id) {
+    redirect("/login");
+  }
+
+  const membership = await getCurrentCompanyIdForUser(session.user.id);
+
+  if (!membership) {
+    redirect("/cadastro");
+  }
+
+  return membership;
+}
+
+export async function generatePostAction(formData: FormData) {
+  const { companyId, userId } = await getCurrentCompanyContext();
+  const canGeneratePost = await hasFeatureLimitAvailable(companyId, "posts");
+
+  if (!canGeneratePost) {
+    redirect("/posts?error=limit");
+  }
+
+  const input = {
+    businessType: readRequiredField(formData, "businessType"),
+    objective: readRequiredField(formData, "objective"),
+    platform: readRequiredField(formData, "platform"),
+    tone: readRequiredField(formData, "tone")
+  };
+  const prompt = buildPostGeneratorPrompt(input);
+  let generatedPost;
+
+  try {
+    generatedPost = await generatePostWithOpenAI(input);
+  } catch {
+    redirect("/posts?error=openai");
+  }
+
+  const post = await prisma.generatedPost.create({
+    data: {
+      companyId,
+      userId,
+      businessType: input.businessType,
+      objective: input.objective,
+      tone: input.tone,
+      platform: input.platform,
+      prompt,
+      title: generatedPost.title,
+      content: generatedPost.content,
+      hashtags: generatedPost.hashtags,
+      cta: generatedPost.cta,
+      formatSuggestion: generatedPost.formatSuggestion
+    },
+    select: {
+      id: true
+    }
+  });
+
+  redirect(`/posts?generatedPostId=${post.id}`);
+}

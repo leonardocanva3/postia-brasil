@@ -1,0 +1,416 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum CompanyMemberRole {
+  OWNER
+  ADMIN
+  EDITOR
+  VIEWER
+}
+
+enum PostStatus {
+  DRAFT
+  SCHEDULED
+  PUBLISHED
+  ARCHIVED
+}
+
+enum CalendarItemStatus {
+  PLANNED
+  IN_PROGRESS
+  COMPLETED
+  CANCELED
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  PENDING
+  CANCELED
+  EXPIRED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  CANCELED
+  FAILED
+}
+
+enum GeneratedPostStatus {
+  GENERATED
+  ARCHIVED
+}
+
+enum GeneratedCaptionStatus {
+  GENERATED
+  ARCHIVED
+}
+
+enum EditorialCalendarStatus {
+  IDEA
+  PLANNED
+  IN_PRODUCTION
+  READY
+  PUBLISHED
+  CANCELED
+}
+
+enum ScheduledPostStatus {
+  DRAFT
+  SCHEDULED
+  PUBLISHED
+  CANCELED
+}
+
+enum WhatsAppShareStatus {
+  READY
+  SENT
+  FAILED
+}
+
+model Company {
+  id                String                  @id @default(uuid())
+  name              String
+  slug              String                  @unique
+  createdAt         DateTime                @default(now())
+  updatedAt         DateTime                @updatedAt
+  members           CompanyMember[]
+  posts             Post[]
+  captions          Caption[]
+  calendarItems     CalendarItem[]
+  subscriptions     Subscription[]
+  payments          Payment[]
+  generatedPosts    GeneratedPost[]
+  generatedCaptions GeneratedCaption[]
+  editorialItems    EditorialCalendarItem[]
+  scheduledPosts    ScheduledPost[]
+  whatsappContacts  WhatsAppContact[]
+  whatsappShareLogs WhatsAppShareLog[]
+
+  @@map("companies")
+}
+
+model User {
+  id                String                  @id @default(uuid())
+  name              String?
+  email             String                  @unique
+  passwordHash      String
+  isPlatformAdmin   Boolean                 @default(false)
+  createdAt         DateTime                @default(now())
+  updatedAt         DateTime                @updatedAt
+  companies         CompanyMember[]
+  posts             Post[]
+  captions          Caption[]
+  calendarItems     CalendarItem[]
+  generatedPosts    GeneratedPost[]
+  generatedCaptions GeneratedCaption[]
+  editorialItems    EditorialCalendarItem[]
+  scheduledPosts    ScheduledPost[]
+  whatsappShareLogs WhatsAppShareLog[]
+  adminLogs         AdminLog[]
+
+  @@map("users")
+}
+
+model CompanyMember {
+  id        String            @id @default(uuid())
+  role      CompanyMemberRole @default(EDITOR)
+  companyId String
+  userId    String
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, userId])
+  @@index([userId])
+  @@map("company_members")
+}
+
+model Post {
+  id          String     @id @default(uuid())
+  title       String
+  content     String?
+  status      PostStatus @default(DRAFT)
+  companyId   String
+  authorId    String?
+  scheduledAt DateTime?
+  publishedAt DateTime?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  company       Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  author        User?          @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  captions      Caption[]
+  calendarItems CalendarItem[]
+
+  @@index([companyId])
+  @@index([authorId])
+  @@map("posts")
+}
+
+model Caption {
+  id        String   @id @default(uuid())
+  text      String
+  companyId String
+  postId    String?
+  authorId  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  post    Post?   @relation(fields: [postId], references: [id], onDelete: SetNull)
+  author  User?   @relation(fields: [authorId], references: [id], onDelete: SetNull)
+
+  @@index([companyId])
+  @@index([postId])
+  @@index([authorId])
+  @@map("captions")
+}
+
+model CalendarItem {
+  id          String             @id @default(uuid())
+  title       String
+  description String?
+  status      CalendarItemStatus @default(PLANNED)
+  companyId   String
+  postId      String?
+  authorId    String?
+  scheduledAt DateTime
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  post    Post?   @relation(fields: [postId], references: [id], onDelete: SetNull)
+  author  User?   @relation(fields: [authorId], references: [id], onDelete: SetNull)
+
+  @@index([companyId, scheduledAt])
+  @@index([postId])
+  @@index([authorId])
+  @@map("calendar_items")
+}
+
+model Plan {
+  id                   String         @id @default(uuid())
+  name                 String         @unique
+  description          String
+  monthlyPrice         Decimal        @db.Decimal(10, 2)
+  monthlyPostLimit     Int?
+  monthlyCaptionLimit  Int?
+  monthlyCalendarLimit Int?
+  isActive             Boolean        @default(true)
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
+  subscriptions        Subscription[]
+
+  @@map("plans")
+}
+
+model Subscription {
+  id        String             @id @default(uuid())
+  companyId String
+  planId    String
+  status    SubscriptionStatus @default(PENDING)
+  startDate DateTime           @default(now())
+  endDate   DateTime?
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+
+  company  Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  plan     Plan      @relation(fields: [planId], references: [id], onDelete: Restrict)
+  payments Payment[]
+
+  @@index([companyId, status])
+  @@index([planId])
+  @@map("subscriptions")
+}
+
+model Payment {
+  id                String        @id @default(uuid())
+  companyId         String
+  subscriptionId    String
+  amount            Decimal       @db.Decimal(10, 2)
+  status            PaymentStatus @default(PENDING)
+  paymentMethod     String
+  externalReference String        @unique
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  company      Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  subscription Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@index([subscriptionId])
+  @@map("payments")
+}
+
+model GeneratedPost {
+  id               String              @id @default(uuid())
+  companyId        String
+  userId           String
+  businessType     String
+  objective        String
+  tone             String
+  platform         String
+  prompt           String
+  title            String
+  content          String
+  hashtags         String[]
+  cta              String
+  formatSuggestion String
+  status           GeneratedPostStatus @default(GENERATED)
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+
+  company           Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  scheduledPosts    ScheduledPost[]
+  whatsappShareLogs WhatsAppShareLog[]
+
+  @@index([companyId, createdAt])
+  @@index([userId])
+  @@map("generated_posts")
+}
+
+model GeneratedCaption {
+  id        String                 @id @default(uuid())
+  companyId String
+  userId    String
+  platform  String
+  subject   String
+  tone      String
+  caption   String
+  emojis    String[]
+  hashtags  String[]
+  cta       String
+  status    GeneratedCaptionStatus @default(GENERATED)
+  createdAt DateTime               @default(now())
+  updatedAt DateTime               @updatedAt
+
+  company           Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  scheduledPosts    ScheduledPost[]
+  whatsappShareLogs WhatsAppShareLog[]
+
+  @@index([companyId, createdAt])
+  @@index([userId])
+  @@map("generated_captions")
+}
+
+model EditorialCalendarItem {
+  id            String                  @id @default(uuid())
+  companyId     String
+  userId        String
+  title         String
+  description   String
+  platform      String
+  contentType   String
+  objective     String
+  suggestedDate DateTime
+  status        EditorialCalendarStatus @default(IDEA)
+  createdAt     DateTime                @default(now())
+  updatedAt     DateTime                @updatedAt
+
+  company        Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  scheduledPosts ScheduledPost[]
+
+  @@index([companyId, suggestedDate])
+  @@index([userId])
+  @@map("editorial_calendar_items")
+}
+
+model ScheduledPost {
+  id                      String              @id @default(uuid())
+  companyId               String
+  userId                  String
+  generatedPostId         String?
+  generatedCaptionId      String?
+  editorialCalendarItemId String?
+  title                   String
+  content                 String
+  platform                String
+  scheduledFor            DateTime
+  status                  ScheduledPostStatus @default(SCHEDULED)
+  notes                   String?
+  createdAt               DateTime            @default(now())
+  updatedAt               DateTime            @updatedAt
+
+  company               Company                @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user                  User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  generatedPost         GeneratedPost?         @relation(fields: [generatedPostId], references: [id], onDelete: SetNull)
+  generatedCaption      GeneratedCaption?      @relation(fields: [generatedCaptionId], references: [id], onDelete: SetNull)
+  editorialCalendarItem EditorialCalendarItem? @relation(fields: [editorialCalendarItemId], references: [id], onDelete: SetNull)
+  whatsappShareLogs     WhatsAppShareLog[]
+
+  @@index([companyId, scheduledFor])
+  @@index([userId])
+  @@index([generatedPostId])
+  @@index([generatedCaptionId])
+  @@index([editorialCalendarItemId])
+  @@map("scheduled_posts")
+}
+
+model WhatsAppContact {
+  id          String   @id @default(uuid())
+  companyId   String
+  name        String
+  phone       String
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@map("whatsapp_contacts")
+}
+
+model WhatsAppShareLog {
+  id                 String              @id @default(uuid())
+  companyId          String
+  userId             String
+  scheduledPostId    String?
+  generatedPostId    String?
+  generatedCaptionId String?
+  phone              String
+  message            String
+  status             WhatsAppShareStatus @default(READY)
+  createdAt          DateTime            @default(now())
+
+  company          Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  scheduledPost    ScheduledPost?    @relation(fields: [scheduledPostId], references: [id], onDelete: SetNull)
+  generatedPost    GeneratedPost?    @relation(fields: [generatedPostId], references: [id], onDelete: SetNull)
+  generatedCaption GeneratedCaption? @relation(fields: [generatedCaptionId], references: [id], onDelete: SetNull)
+
+  @@index([companyId, createdAt])
+  @@index([userId])
+  @@index([scheduledPostId])
+  @@index([generatedPostId])
+  @@index([generatedCaptionId])
+  @@map("whatsapp_share_logs")
+}
+
+model AdminLog {
+  id        String   @id @default(uuid())
+  userId    String
+  action    String
+  entity    String
+  entityId  String?
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@map("admin_logs")
+}
