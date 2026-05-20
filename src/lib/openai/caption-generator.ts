@@ -1,4 +1,8 @@
 import { openai } from "@/lib/openai/openai-client";
+import {
+  type CompanyProfileContext,
+  formatCompanyProfileContext
+} from "@/lib/company/profile-context";
 
 export type GenerateCaptionInput = Readonly<{
   subject: string;
@@ -6,6 +10,7 @@ export type GenerateCaptionInput = Readonly<{
   tone: string;
   hashtagCount: number;
   useEmojis: boolean;
+  companyProfile?: CompanyProfileContext | null;
 }>;
 
 export type GeneratedCaptionOutput = Readonly<{
@@ -47,6 +52,9 @@ export function buildCaptionGeneratorPrompt(input: GenerateCaptionInput) {
     `Tom de voz: ${input.tone}`,
     `Quantidade de hashtags: ${input.hashtagCount}`,
     `Usar emojis: ${input.useEmojis ? "sim" : "nao"}`,
+    `Contexto do perfil da empresa:\n${formatCompanyProfileContext(
+      input.companyProfile
+    )}`,
     "Retorne apenas JSON valido com as chaves: caption, emojis, hashtags, cta.",
     "emojis e hashtags devem ser arrays de strings.",
     "Se emojis nao forem usados, retorne emojis como array vazio."

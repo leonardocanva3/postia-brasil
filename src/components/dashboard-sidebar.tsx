@@ -4,9 +4,11 @@ const navigationItems = [
   { href: "/dashboard", label: "Dashboard" },
   { href: "/posts", label: "Posts" },
   { href: "/legendas", label: "Legendas" },
+  { href: "/artes", label: "Artes" },
   { href: "/calendario", label: "Calendario" },
   { href: "/agendamentos", label: "Agendamentos" },
   { href: "/whatsapp", label: "WhatsApp" },
+  { href: "/perfil", label: "Perfil da empresa" },
   { href: "/financeiro", label: "Financeiro" }
 ];
 

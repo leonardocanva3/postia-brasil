@@ -4,12 +4,14 @@ import { useFormStatus } from "react-dom";
 
 type LoadingButtonProps = Readonly<{
   children: React.ReactNode;
+  formAction?: (formData: FormData) => void | Promise<void>;
   loadingText?: string;
   className?: string;
 }>;
 
 export function LoadingButton({
   children,
+  formAction,
   loadingText = "Processando...",
   className = ""
 }: LoadingButtonProps) {
@@ -19,6 +21,7 @@ export function LoadingButton({
     <button
       className={`rounded-md bg-emerald-700 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-gray-400 ${className}`}
       disabled={pending}
+      formAction={formAction}
       type="submit"
     >
       {pending ? loadingText : children}

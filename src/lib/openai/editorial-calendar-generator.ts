@@ -1,4 +1,8 @@
 import { openai } from "@/lib/openai/openai-client";
+import {
+  type CompanyProfileContext,
+  formatCompanyProfileContext
+} from "@/lib/company/profile-context";
 
 export type GenerateEditorialCalendarInput = Readonly<{
   businessType: string;
@@ -6,6 +10,7 @@ export type GenerateEditorialCalendarInput = Readonly<{
   ideasCount: number;
   platforms: string[];
   tone: string;
+  companyProfile?: CompanyProfileContext | null;
 }>;
 
 export type EditorialCalendarSuggestion = Readonly<{
@@ -69,6 +74,9 @@ export function buildEditorialCalendarPrompt(input: GenerateEditorialCalendarInp
     `Quantidade de ideias: ${input.ideasCount}`,
     `Plataformas: ${input.platforms.join(", ")}`,
     `Tom de voz: ${input.tone}`,
+    `Contexto do perfil da empresa:\n${formatCompanyProfileContext(
+      input.companyProfile
+    )}`,
     "Distribua as ideias ao longo do mes de referencia.",
     "Retorne apenas JSON valido no formato: { \"items\": [...] }.",
     "Cada item deve ter: title, description, platform, contentType, objective, suggestedDate.",

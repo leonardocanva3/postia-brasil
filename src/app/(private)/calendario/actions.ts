@@ -8,6 +8,7 @@ import {
   getCurrentCompanyIdForUser,
   hasFeatureLimitAvailable
 } from "@/lib/billing/usage";
+import { getCompanyProfileContext } from "@/lib/company/profile-context";
 import { prisma } from "@/lib/database/prisma";
 import { generateEditorialCalendarWithOpenAI } from "@/lib/openai/editorial-calendar-generator";
 
@@ -78,7 +79,8 @@ export async function generateEditorialCalendarAction(formData: FormData) {
     referenceMonth: readRequiredField(formData, "referenceMonth"),
     ideasCount: readIdeasCount(formData),
     platforms: readPlatforms(formData),
-    tone: readRequiredField(formData, "tone")
+    tone: readRequiredField(formData, "tone"),
+    companyProfile: await getCompanyProfileContext(companyId)
   };
   const canGenerateCalendar = await hasFeatureLimitAvailable(
     companyId,

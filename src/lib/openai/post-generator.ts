@@ -1,10 +1,15 @@
 import { openai } from "@/lib/openai/openai-client";
+import {
+  type CompanyProfileContext,
+  formatCompanyProfileContext
+} from "@/lib/company/profile-context";
 
 export type GeneratePostInput = Readonly<{
   businessType: string;
   objective: string;
   platform: string;
   tone: string;
+  companyProfile?: CompanyProfileContext | null;
 }>;
 
 export type GeneratedPostOutput = Readonly<{
@@ -48,6 +53,9 @@ export function buildPostGeneratorPrompt(input: GeneratePostInput) {
     `Objetivo do post: ${input.objective}`,
     `Plataforma: ${input.platform}`,
     `Tom de voz: ${input.tone}`,
+    `Contexto do perfil da empresa:\n${formatCompanyProfileContext(
+      input.companyProfile
+    )}`,
     "Retorne apenas JSON valido com as chaves: title, content, cta, hashtags, formatSuggestion.",
     "hashtags deve ser um array de strings."
   ].join("\n");

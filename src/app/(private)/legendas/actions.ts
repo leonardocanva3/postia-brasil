@@ -6,6 +6,7 @@ import {
   getCurrentCompanyIdForUser,
   hasFeatureLimitAvailable
 } from "@/lib/billing/usage";
+import { getCompanyProfileContext } from "@/lib/company/profile-context";
 import { prisma } from "@/lib/database/prisma";
 import { generateCaptionWithOpenAI } from "@/lib/openai/caption-generator";
 
@@ -58,7 +59,8 @@ export async function generateCaptionAction(formData: FormData) {
     platform: readRequiredField(formData, "platform"),
     tone: readRequiredField(formData, "tone"),
     hashtagCount: readHashtagCount(formData),
-    useEmojis: formData.get("useEmojis") === "yes"
+    useEmojis: formData.get("useEmojis") === "yes",
+    companyProfile: await getCompanyProfileContext(companyId)
   };
   let generatedCaption;
 

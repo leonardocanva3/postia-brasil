@@ -74,10 +74,49 @@ enum WhatsAppShareStatus {
   FAILED
 }
 
+enum CompanyImageType {
+  FACHADA
+  DONO
+  EQUIPE
+  PRODUTO
+  SERVICO
+  AMBIENTE
+  ANTES_DEPOIS
+  EQUIPAMENTO
+  VEICULO
+  OUTRO
+}
+
+enum ArtFormat {
+  FEED_RETRATO
+  FEED_QUADRADO
+  REELS_STORIES
+}
+
+enum GeneratedArtStatus {
+  DRAFT
+  GENERATED
+  FAILED
+  ARCHIVED
+}
+
 model Company {
   id                String                  @id @default(uuid())
   name              String
   slug              String                  @unique
+  website           String?
+  instagram         String?
+  description       String?
+  services          String?
+  differentiators   String?
+  targetAudience    String?
+  recommendedTone   String?
+  defaultCta        String?
+  brandColors       String[]
+  logoUrl           String?
+  postIdeas         String[]
+  designNotes       String?
+  collectedInfo     String?
   createdAt         DateTime                @default(now())
   updatedAt         DateTime                @updatedAt
   members           CompanyMember[]
@@ -92,6 +131,9 @@ model Company {
   scheduledPosts    ScheduledPost[]
   whatsappContacts  WhatsAppContact[]
   whatsappShareLogs WhatsAppShareLog[]
+  images            CompanyImage[]
+  generatedArts     GeneratedArt[]
+  generatedArtworks GeneratedArtwork[]
 
   @@map("companies")
 }
@@ -113,6 +155,8 @@ model User {
   editorialItems    EditorialCalendarItem[]
   scheduledPosts    ScheduledPost[]
   whatsappShareLogs WhatsAppShareLog[]
+  generatedArts     GeneratedArt[]
+  generatedArtworks GeneratedArtwork[]
   adminLogs         AdminLog[]
 
   @@map("users")
@@ -273,6 +317,7 @@ model GeneratedPost {
   user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
   scheduledPosts    ScheduledPost[]
   whatsappShareLogs WhatsAppShareLog[]
+  generatedArts     GeneratedArt[]
 
   @@index([companyId, createdAt])
   @@index([userId])
@@ -298,6 +343,7 @@ model GeneratedCaption {
   user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
   scheduledPosts    ScheduledPost[]
   whatsappShareLogs WhatsAppShareLog[]
+  generatedArts     GeneratedArt[]
 
   @@index([companyId, createdAt])
   @@index([userId])
@@ -349,6 +395,7 @@ model ScheduledPost {
   generatedCaption      GeneratedCaption?      @relation(fields: [generatedCaptionId], references: [id], onDelete: SetNull)
   editorialCalendarItem EditorialCalendarItem? @relation(fields: [editorialCalendarItemId], references: [id], onDelete: SetNull)
   whatsappShareLogs     WhatsAppShareLog[]
+  generatedArts         GeneratedArt[]
 
   @@index([companyId, scheduledFor])
   @@index([userId])
@@ -398,6 +445,89 @@ model WhatsAppShareLog {
   @@index([generatedPostId])
   @@index([generatedCaptionId])
   @@map("whatsapp_share_logs")
+}
+
+model CompanyImage {
+  id          String           @id @default(uuid())
+  companyId   String
+  title       String
+  type        CompanyImageType
+  description String?
+  tags        String[]
+  imageUrl    String
+  isActive    Boolean          @default(true)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  company       Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  generatedArts GeneratedArt[]
+
+  @@index([companyId, isActive])
+  @@map("company_images")
+}
+
+model GeneratedArt {
+  id                 String             @id @default(uuid())
+  companyId          String
+  userId             String
+  generatedPostId    String?
+  generatedCaptionId String?
+  scheduledPostId    String?
+  companyImageId     String?
+  subject            String
+  objective          String
+  platform           String
+  format             ArtFormat
+  width              Int
+  height             Int
+  aspectRatio        String
+  title              String
+  useLogo            Boolean            @default(true)
+  useBrandColors     Boolean            @default(true)
+  outputMimeType     String             @default("image/png")
+  quality            String             @default("high")
+  prompt             String?
+  imageUrl           String?
+  templateMetadata   Json?
+  status             GeneratedArtStatus @default(DRAFT)
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  company          Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  generatedPost    GeneratedPost?    @relation(fields: [generatedPostId], references: [id], onDelete: SetNull)
+  generatedCaption GeneratedCaption? @relation(fields: [generatedCaptionId], references: [id], onDelete: SetNull)
+  scheduledPost    ScheduledPost?    @relation(fields: [scheduledPostId], references: [id], onDelete: SetNull)
+  companyImage     CompanyImage?     @relation(fields: [companyImageId], references: [id], onDelete: SetNull)
+
+  @@index([companyId, createdAt])
+  @@index([userId])
+  @@index([generatedPostId])
+  @@index([generatedCaptionId])
+  @@index([scheduledPostId])
+  @@index([companyImageId])
+  @@map("generated_arts")
+}
+
+model GeneratedArtwork {
+  id           String             @id @default(uuid())
+  companyId    String
+  userId       String
+  title        String
+  prompt       String
+  format       ArtFormat
+  imageUrl     String
+  thumbnailUrl String
+  status       GeneratedArtStatus @default(GENERATED)
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, createdAt])
+  @@index([userId])
+  @@map("generated_artworks")
 }
 
 model AdminLog {

@@ -7,6 +7,7 @@ import {
   getCurrentCompanyIdForUser,
   hasFeatureLimitAvailable
 } from "@/lib/billing/usage";
+import { getCompanyProfileContext } from "@/lib/company/profile-context";
 import {
   buildPostGeneratorPrompt,
   generatePostWithOpenAI
@@ -50,7 +51,8 @@ export async function generatePostAction(formData: FormData) {
     businessType: readRequiredField(formData, "businessType"),
     objective: readRequiredField(formData, "objective"),
     platform: readRequiredField(formData, "platform"),
-    tone: readRequiredField(formData, "tone")
+    tone: readRequiredField(formData, "tone"),
+    companyProfile: await getCompanyProfileContext(companyId)
   };
   const prompt = buildPostGeneratorPrompt(input);
   let generatedPost;
