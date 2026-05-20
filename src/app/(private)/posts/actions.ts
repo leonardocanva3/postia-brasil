@@ -12,6 +12,7 @@ import {
   buildPostGeneratorPrompt,
   generatePostWithOpenAI
 } from "@/lib/openai/post-generator";
+import { OPENAI_MISSING_KEY_MESSAGE } from "@/lib/openai/settings";
 
 function readRequiredField(formData: FormData, field: string) {
   const value = String(formData.get(field) ?? "").trim();
@@ -59,7 +60,11 @@ export async function generatePostAction(formData: FormData) {
 
   try {
     generatedPost = await generatePostWithOpenAI(input);
-  } catch {
+  } catch (error) {
+    if (error instanceof Error && error.message === OPENAI_MISSING_KEY_MESSAGE) {
+      redirect("/posts?error=openai-key");
+    }
+
     redirect("/posts?error=openai");
   }
 

@@ -1,6 +1,13 @@
 import { redirect } from "next/navigation";
 import { auth } from "../../../../auth";
-import { listArtFormatOptions } from "@/lib/art";
+import {
+  getArtStyleDefinition,
+  getDesignerLevelDefinition,
+  listArtFormatOptions,
+  listDesignerLevelOptions,
+  listArtStyleOptions,
+  listRealArtTemplates
+} from "@/lib/art";
 import { getCurrentCompanyIdForUser } from "@/lib/billing/usage";
 import { prisma } from "@/lib/database/prisma";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -40,13 +47,38 @@ async function getCompanyIdForCurrentUser() {
     redirect("/cadastro");
   }
 
-  return membership.companyId;
+  const company = await prisma.company.findUnique({
+    where: { id: membership.companyId },
+    select: {
+      id: true,
+      businessSegmentId: true,
+      businessSpecialtyId: true
+    }
+  });
+
+  if (!company) {
+    redirect("/cadastro");
+  }
+
+  return company;
+}
+
+function getRealTemplateName(metadata: unknown) {
+  if (!metadata || typeof metadata !== "object") {
+    return null;
+  }
+
+  const selected = (metadata as { selectedRealTemplate?: { name?: unknown } })
+    .selectedRealTemplate;
+
+  return typeof selected?.name === "string" ? selected.name : null;
 }
 
 export default async function ArtesPage({ searchParams }: ArtesPageProps) {
   const params = await searchParams;
-  const companyId = await getCompanyIdForCurrentUser();
-  const [companyImages, artworks] = await Promise.all([
+  const company = await getCompanyIdForCurrentUser();
+  const companyId = company.id;
+  const [companyImages, artTemplates, artworks] = await Promise.all([
     prisma.companyImage.findMany({
       where: {
         companyId,
@@ -55,15 +87,34 @@ export default async function ArtesPage({ searchParams }: ArtesPageProps) {
       orderBy: { createdAt: "desc" },
       take: 20
     }),
+    prisma.artTemplate.findMany({
+      where: {
+        isActive: true,
+        OR: [
+          { segmentId: company.businessSegmentId },
+          { specialtyId: company.businessSpecialtyId },
+          { segmentId: null, specialtyId: null }
+        ]
+      },
+      orderBy: { name: "asc" },
+      select: {
+        id: true,
+        name: true,
+        format: true,
+        visualStyle: true
+      }
+    }),
     prisma.generatedArt.findMany({
       where: { companyId },
       orderBy: { createdAt: "desc" },
       take: 30,
       include: {
-        companyImage: true
+        companyImage: true,
+        artTemplate: true
       }
     })
   ]);
+  const realArtTemplates = listRealArtTemplates();
 
   return (
     <main className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-6 py-8">
@@ -87,6 +138,19 @@ export default async function ArtesPage({ searchParams }: ArtesPageProps) {
         <Notice tone="error">
           Nao foi possivel gerar o PNG agora. Verifique a chave da OpenAI ou tente novamente
           com outro briefing.
+        </Notice>
+      ) : null}
+      {params.error === "openai-key" ? (
+        <Notice tone="error">
+          Chave da OpenAI não configurada. Configure OPENAI_API_KEY no arquivo .env.
+        </Notice>
+      ) : null}
+      {params.error === "limit" ? (
+        <Notice tone="warning">
+          Você atingiu o limite do seu plano.{" "}
+          <a className="font-semibold underline" href="/financeiro">
+            Fazer Upgrade
+          </a>
         </Notice>
       ) : null}
       {params.draft === "true" ? (
@@ -116,6 +180,31 @@ export default async function ArtesPage({ searchParams }: ArtesPageProps) {
                 required
                 type="text"
               />
+            </label>
+            <label className="block">
+              <span className="text-sm font-medium text-gray-800">
+                Template visual opcional
+              </span>
+              <select
+                className="mt-2 w-full rounded-md border border-gray-300 px-3 py-2 text-gray-950 outline-none transition focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
+                name="artTemplateId"
+              >
+                <option value="">Sugerir automaticamente pelo nicho</option>
+                <optgroup label="Templates reais profissionais">
+                  {realArtTemplates.map((template) => (
+                    <option key={template.id} value={`real:${template.id}`}>
+                      {template.name} - {template.supportedFormats.join(", ")}
+                    </option>
+                  ))}
+                </optgroup>
+                <optgroup label="Templates conceituais">
+                {artTemplates.map((template) => (
+                  <option key={template.id} value={`db:${template.id}`}>
+                    {template.name} - {template.format}
+                  </option>
+                ))}
+                </optgroup>
+              </select>
             </label>
             <label className="block">
               <span className="text-sm font-medium text-gray-800">Objetivo</span>
@@ -149,6 +238,38 @@ export default async function ArtesPage({ searchParams }: ArtesPageProps) {
                 {listArtFormatOptions().map((format) => (
                   <option key={format.value} value={format.value}>
                     {format.label} - {format.width}x{format.height}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="block">
+              <span className="text-sm font-medium text-gray-800">
+                Estilo Visual
+              </span>
+              <select
+                className="mt-2 w-full rounded-md border border-gray-300 px-3 py-2 text-gray-950 outline-none transition focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
+                name="style"
+              >
+                <option value="">Automatico</option>
+                {listArtStyleOptions().map((style) => (
+                  <option key={style.value} value={style.value}>
+                    {style.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="block">
+              <span className="text-sm font-medium text-gray-800">
+                Nível de Designer
+              </span>
+              <select
+                className="mt-2 w-full rounded-md border border-gray-300 px-3 py-2 text-gray-950 outline-none transition focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
+                name="designerLevel"
+              >
+                <option value="">Automático</option>
+                {listDesignerLevelOptions().map((level) => (
+                  <option key={level.value} value={level.value}>
+                    {level.name}
                   </option>
                 ))}
               </select>
@@ -224,6 +345,26 @@ export default async function ArtesPage({ searchParams }: ArtesPageProps) {
                     <div className="flex justify-between gap-4">
                       <dt>Imagem</dt>
                       <dd>{artwork.companyImage?.title ?? "Opcional"}</dd>
+                    </div>
+                    <div className="flex justify-between gap-4">
+                      <dt>Template</dt>
+                      <dd>
+                        {getRealTemplateName(artwork.templateMetadata) ??
+                          artwork.artTemplate?.name ??
+                          "Automatico"}
+                      </dd>
+                    </div>
+                    <div className="flex justify-between gap-4">
+                      <dt>Estilo</dt>
+                      <dd>
+                        {artwork.style
+                          ? getArtStyleDefinition(artwork.style).name
+                          : "Automatico"}
+                      </dd>
+                    </div>
+                    <div className="flex justify-between gap-4">
+                      <dt>Designer</dt>
+                      <dd>{getDesignerLevelDefinition(artwork.designerLevel).name}</dd>
                     </div>
                     <div className="flex justify-between gap-4">
                       <dt>Logo</dt>

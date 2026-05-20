@@ -5,6 +5,7 @@ const navigationItems = [
   { href: "/posts", label: "Posts" },
   { href: "/legendas", label: "Legendas" },
   { href: "/artes", label: "Artes" },
+  { href: "/campanhas", label: "Campanhas" },
   { href: "/calendario", label: "Calendario" },
   { href: "/agendamentos", label: "Agendamentos" },
   { href: "/whatsapp", label: "WhatsApp" },

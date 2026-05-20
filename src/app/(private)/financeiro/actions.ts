@@ -24,14 +24,57 @@ export async function subscribeToProAction() {
     update: {},
     create: {
       name: "Pro",
-      description: "Plano profissional com geracoes ilimitadas.",
+      description: "Plano profissional para operacao comercial.",
       monthlyPrice: "49.90",
-      monthlyPostLimit: null,
-      monthlyCaptionLimit: null,
-      monthlyCalendarLimit: null,
+      monthlyPostLimit: 30,
+      monthlyCaptionLimit: 30,
+      monthlyCalendarLimit: 5,
+      monthlyArtLimit: 15,
+      monthlyAnalysisLimit: 5,
+      monthlyCampaignLimit: 3,
       isActive: true
     }
   });
+  const existingSubscription = await prisma.subscription.findFirst({
+    where: {
+      companyId: membership.companyId,
+      OR: [
+        { status: "PENDING" },
+        {
+          status: "ACTIVE",
+          plan: {
+            is: {
+              name: "Pro"
+            }
+          }
+        }
+      ]
+    },
+    orderBy: { createdAt: "desc" },
+    include: {
+      payments: {
+        where: { status: "PENDING" },
+        orderBy: { createdAt: "desc" },
+        take: 1
+      }
+    }
+  });
+
+  if (existingSubscription?.payments[0]) {
+    const payment = existingSubscription.payments[0];
+    const paymentUrl = createPicPayPaymentLink({
+      externalReference: payment.externalReference,
+      amount: Number(payment.amount),
+      description: `Assinatura ${proPlan.name} - PostIA Brasil`
+    });
+
+    redirect(paymentUrl);
+  }
+
+  if (existingSubscription) {
+    redirect("/financeiro?subscription=exists");
+  }
+
   const subscription = await prisma.subscription.create({
     data: {
       companyId: membership.companyId,

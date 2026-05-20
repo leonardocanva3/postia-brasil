@@ -37,6 +37,7 @@ export default async function DashboardPage() {
     captionsCount,
     scheduledCount,
     upcomingScheduledCount,
+    activeCampaignsCount,
     latestPosts,
     latestCaptions,
     upcomingSchedules
@@ -58,6 +59,12 @@ export default async function DashboardPage() {
         scheduledFor: {
           gte: new Date()
         }
+      }
+    }),
+    prisma.campaign.count({
+      where: {
+        companyId: membership.companyId,
+        status: { in: ["DRAFT", "PLANNED", "GENERATED", "SCHEDULED"] }
       }
     }),
     prisma.generatedPost.findMany({
@@ -85,6 +92,7 @@ export default async function DashboardPage() {
     { label: "Legendas Geradas", value: String(captionsCount) },
     { label: "Conteudos Agendados", value: String(scheduledCount) },
     { label: "Proximos Agendamentos", value: String(upcomingScheduledCount) },
+    { label: "Campanhas Ativas", value: String(activeCampaignsCount) },
     { label: "Plano Atual", value: usage.planName }
   ];
   const planUsage = [
@@ -102,6 +110,21 @@ export default async function DashboardPage() {
       label: "Calendarios no mes",
       value: formatLimit(usage.calendars.used, usage.calendars.limit),
       remaining: formatRemaining(usage.calendars.remaining)
+    },
+    {
+      label: "Artes no mes",
+      value: formatLimit(usage.arts.used, usage.arts.limit),
+      remaining: formatRemaining(usage.arts.remaining)
+    },
+    {
+      label: "Campanhas no mes",
+      value: formatLimit(usage.campaigns.used, usage.campaigns.limit),
+      remaining: formatRemaining(usage.campaigns.remaining)
+    },
+    {
+      label: "Analises no mes",
+      value: formatLimit(usage.analyses.used, usage.analyses.limit),
+      remaining: formatRemaining(usage.analyses.remaining)
     }
   ];
 
@@ -132,7 +155,7 @@ export default async function DashboardPage() {
         description="Limites e saldo restante do ciclo mensal atual."
         title="Uso do plano"
       >
-        <div className="mt-5 grid gap-4 md:grid-cols-3">
+        <div className="mt-5 grid gap-4 md:grid-cols-3 xl:grid-cols-6">
           {planUsage.map((item) => (
             <article className="rounded-md border border-gray-200 p-4" key={item.label}>
               <p className="text-sm font-medium text-gray-600">{item.label}</p>

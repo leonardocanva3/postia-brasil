@@ -87,10 +87,17 @@ export default async function PostsPage({ searchParams }: PostsPageProps) {
               instantes ou verifique a chave da OpenAI.
             </Notice>
           ) : null}
+          {params.error === "openai-key" ? (
+            <Notice tone="error">
+              Chave da OpenAI não configurada. Configure OPENAI_API_KEY no arquivo .env.
+            </Notice>
+          ) : null}
           {params.error === "limit" ? (
             <Notice tone="warning">
-              Voce atingiu o limite mensal de posts do plano atual. Para
-              continuar gerando, faca upgrade do plano.
+              Você atingiu o limite do seu plano.{" "}
+              <a className="font-semibold underline" href="/financeiro">
+                Fazer Upgrade
+              </a>
             </Notice>
           ) : null}
           <div className="mt-5 space-y-5">

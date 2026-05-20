@@ -13,6 +13,22 @@ export type CompanyProfileContext = Readonly<{
   logoUrl?: string | null;
   postIdeas?: string[];
   designNotes?: string | null;
+  businessSegment?: {
+    name: string;
+    description: string;
+  } | null;
+  businessSpecialty?: {
+    name: string;
+    description: string;
+    keywords: string[];
+    recommendedTone: string;
+    commonServices: string[];
+    contentIdeas: string[];
+    visualStyle: string;
+    colorSuggestions: string[];
+    iconSuggestions: string[];
+    complianceNotes?: string | null;
+  } | null;
   images?: Array<{
     title: string;
     type: string;
@@ -38,6 +54,26 @@ export async function getCompanyProfileContext(companyId: string) {
       logoUrl: true,
       postIdeas: true,
       designNotes: true,
+      businessSegment: {
+        select: {
+          name: true,
+          description: true
+        }
+      },
+      businessSpecialty: {
+        select: {
+          name: true,
+          description: true,
+          keywords: true,
+          recommendedTone: true,
+          commonServices: true,
+          contentIdeas: true,
+          visualStyle: true,
+          colorSuggestions: true,
+          iconSuggestions: true,
+          complianceNotes: true
+        }
+      },
       images: {
         where: { isActive: true },
         orderBy: { createdAt: "desc" },
@@ -79,6 +115,37 @@ export function formatCompanyProfileContext(
     profile.postIdeas?.length ? `Ideias de posts: ${profile.postIdeas.join("; ")}` : null,
     profile.designNotes
       ? `Informacoes para futuras artes: ${profile.designNotes}`
+      : null,
+    profile.businessSegment
+      ? `Segmento principal: ${profile.businessSegment.name} - ${profile.businessSegment.description}`
+      : null,
+    profile.businessSpecialty
+      ? [
+          `Especialidade: ${profile.businessSpecialty.name}`,
+          `Descricao da especialidade: ${profile.businessSpecialty.description}`,
+          profile.businessSpecialty.keywords.length
+            ? `Keywords da especialidade: ${profile.businessSpecialty.keywords.join(", ")}`
+            : null,
+          profile.businessSpecialty.commonServices.length
+            ? `Servicos comuns da especialidade: ${profile.businessSpecialty.commonServices.join(", ")}`
+            : null,
+          profile.businessSpecialty.contentIdeas.length
+            ? `Ideias de conteudo da especialidade: ${profile.businessSpecialty.contentIdeas.join("; ")}`
+            : null,
+          `Tom recomendado da especialidade: ${profile.businessSpecialty.recommendedTone}`,
+          `Estilo visual sugerido: ${profile.businessSpecialty.visualStyle}`,
+          profile.businessSpecialty.colorSuggestions.length
+            ? `Cores sugeridas para o nicho: ${profile.businessSpecialty.colorSuggestions.join(", ")}`
+            : null,
+          profile.businessSpecialty.iconSuggestions.length
+            ? `Icones sugeridos para o nicho: ${profile.businessSpecialty.iconSuggestions.join(", ")}`
+            : null,
+          profile.businessSpecialty.complianceNotes
+            ? `Notas de compliance do nicho: ${profile.businessSpecialty.complianceNotes}`
+            : null
+        ]
+          .filter(Boolean)
+          .join("\n")
       : null,
     profile.images?.length
       ? `Banco de imagens ativo: ${profile.images

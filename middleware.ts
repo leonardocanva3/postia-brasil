@@ -7,6 +7,7 @@ const privateRoutes = [
   "/posts",
   "/legendas",
   "/artes",
+  "/campanhas",
   "/calendario",
   "/agendamentos",
   "/whatsapp",

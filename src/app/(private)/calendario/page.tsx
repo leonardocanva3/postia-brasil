@@ -103,9 +103,17 @@ export default async function CalendarioPage({
               da OpenAI.
             </p>
           ) : null}
+          {params.error === "openai-key" ? (
+            <p className="mt-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
+              Chave da OpenAI não configurada. Configure OPENAI_API_KEY no arquivo .env.
+            </p>
+          ) : null}
           {params.error === "limit" ? (
             <p className="mt-3 rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-800">
-              Limite mensal de calendarios atingido para o plano atual.
+              Você atingiu o limite do seu plano.{" "}
+              <a className="font-semibold underline" href="/financeiro">
+                Fazer Upgrade
+              </a>
             </p>
           ) : null}
           {params.saved === "true" ? (

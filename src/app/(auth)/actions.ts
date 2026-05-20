@@ -63,6 +63,9 @@ export async function registerAction(formData: FormData) {
       monthlyPostLimit: 5,
       monthlyCaptionLimit: 5,
       monthlyCalendarLimit: 1,
+      monthlyArtLimit: 1,
+      monthlyAnalysisLimit: 1,
+      monthlyCampaignLimit: 0,
       isActive: true
     }
   });

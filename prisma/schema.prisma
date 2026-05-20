@@ -93,6 +93,38 @@ enum ArtFormat {
   REELS_STORIES
 }
 
+enum ArtStyle {
+  PREMIUM_LUXO
+  CLEAN_MODERNO
+  CORPORATIVO
+  MINIMALISTA
+  IMPACTO_COMERCIAL
+  PROMOCIONAL
+  INSTITUCIONAL
+  EDUCATIVO
+  MEDICO_PREMIUM
+  AUTOMOTIVO_PERFORMANCE
+  LOGISTICA_FORTE
+  ELEGANCIA_FEMININA
+  ALTO_PADRAO
+}
+
+enum DesignerLevel {
+  JUNIOR
+  PLENO
+  SENIOR
+  PREMIUM
+}
+
+enum CampaignStatus {
+  DRAFT
+  PLANNED
+  GENERATED
+  SCHEDULED
+  PUBLISHED
+  CANCELED
+}
+
 enum GeneratedArtStatus {
   DRAFT
   GENERATED
@@ -101,40 +133,48 @@ enum GeneratedArtStatus {
 }
 
 model Company {
-  id                String                  @id @default(uuid())
-  name              String
-  slug              String                  @unique
-  website           String?
-  instagram         String?
-  description       String?
-  services          String?
-  differentiators   String?
-  targetAudience    String?
-  recommendedTone   String?
-  defaultCta        String?
-  brandColors       String[]
-  logoUrl           String?
-  postIdeas         String[]
-  designNotes       String?
-  collectedInfo     String?
-  createdAt         DateTime                @default(now())
-  updatedAt         DateTime                @updatedAt
-  members           CompanyMember[]
-  posts             Post[]
-  captions          Caption[]
-  calendarItems     CalendarItem[]
-  subscriptions     Subscription[]
-  payments          Payment[]
-  generatedPosts    GeneratedPost[]
-  generatedCaptions GeneratedCaption[]
-  editorialItems    EditorialCalendarItem[]
-  scheduledPosts    ScheduledPost[]
-  whatsappContacts  WhatsAppContact[]
-  whatsappShareLogs WhatsAppShareLog[]
-  images            CompanyImage[]
-  generatedArts     GeneratedArt[]
-  generatedArtworks GeneratedArtwork[]
+  id                  String                  @id @default(uuid())
+  name                String
+  slug                String                  @unique
+  businessSegmentId   String?
+  businessSpecialtyId String?
+  website             String?
+  instagram           String?
+  description         String?
+  services            String?
+  differentiators     String?
+  targetAudience      String?
+  recommendedTone     String?
+  defaultCta          String?
+  brandColors         String[]
+  logoUrl             String?
+  postIdeas           String[]
+  designNotes         String?
+  collectedInfo       String?
+  createdAt           DateTime                @default(now())
+  updatedAt           DateTime                @updatedAt
+  members             CompanyMember[]
+  posts               Post[]
+  captions            Caption[]
+  calendarItems       CalendarItem[]
+  subscriptions       Subscription[]
+  payments            Payment[]
+  generatedPosts      GeneratedPost[]
+  generatedCaptions   GeneratedCaption[]
+  editorialItems      EditorialCalendarItem[]
+  scheduledPosts      ScheduledPost[]
+  whatsappContacts    WhatsAppContact[]
+  whatsappShareLogs   WhatsAppShareLog[]
+  campaigns           Campaign[]
+  campaignItems       CampaignItem[]
+  images              CompanyImage[]
+  generatedArts       GeneratedArt[]
+  generatedArtworks   GeneratedArtwork[]
+  businessSegment     BusinessSegment?        @relation(fields: [businessSegmentId], references: [id], onDelete: SetNull)
+  businessSpecialty   BusinessSpecialty?      @relation(fields: [businessSpecialtyId], references: [id], onDelete: SetNull)
 
+  @@index([businessSegmentId])
+  @@index([businessSpecialtyId])
   @@map("companies")
 }
 
@@ -155,6 +195,8 @@ model User {
   editorialItems    EditorialCalendarItem[]
   scheduledPosts    ScheduledPost[]
   whatsappShareLogs WhatsAppShareLog[]
+  campaigns         Campaign[]
+  campaignItems     CampaignItem[]
   generatedArts     GeneratedArt[]
   generatedArtworks GeneratedArtwork[]
   adminLogs         AdminLog[]
@@ -249,6 +291,9 @@ model Plan {
   monthlyPostLimit     Int?
   monthlyCaptionLimit  Int?
   monthlyCalendarLimit Int?
+  monthlyArtLimit      Int?
+  monthlyAnalysisLimit Int?
+  monthlyCampaignLimit Int?
   isActive             Boolean        @default(true)
   createdAt            DateTime       @default(now())
   updatedAt            DateTime       @updatedAt
@@ -318,6 +363,7 @@ model GeneratedPost {
   scheduledPosts    ScheduledPost[]
   whatsappShareLogs WhatsAppShareLog[]
   generatedArts     GeneratedArt[]
+  campaignItems     CampaignItem[]
 
   @@index([companyId, createdAt])
   @@index([userId])
@@ -344,6 +390,7 @@ model GeneratedCaption {
   scheduledPosts    ScheduledPost[]
   whatsappShareLogs WhatsAppShareLog[]
   generatedArts     GeneratedArt[]
+  campaignItems     CampaignItem[]
 
   @@index([companyId, createdAt])
   @@index([userId])
@@ -396,6 +443,7 @@ model ScheduledPost {
   editorialCalendarItem EditorialCalendarItem? @relation(fields: [editorialCalendarItemId], references: [id], onDelete: SetNull)
   whatsappShareLogs     WhatsAppShareLog[]
   generatedArts         GeneratedArt[]
+  campaignItems         CampaignItem[]
 
   @@index([companyId, scheduledFor])
   @@index([userId])
@@ -474,10 +522,13 @@ model GeneratedArt {
   generatedCaptionId String?
   scheduledPostId    String?
   companyImageId     String?
+  artTemplateId      String?
   subject            String
   objective          String
   platform           String
   format             ArtFormat
+  style              ArtStyle?
+  designerLevel      DesignerLevel      @default(SENIOR)
   width              Int
   height             Int
   aspectRatio        String
@@ -499,6 +550,8 @@ model GeneratedArt {
   generatedCaption GeneratedCaption? @relation(fields: [generatedCaptionId], references: [id], onDelete: SetNull)
   scheduledPost    ScheduledPost?    @relation(fields: [scheduledPostId], references: [id], onDelete: SetNull)
   companyImage     CompanyImage?     @relation(fields: [companyImageId], references: [id], onDelete: SetNull)
+  artTemplate      ArtTemplate?      @relation(fields: [artTemplateId], references: [id], onDelete: SetNull)
+  campaignItems    CampaignItem[]
 
   @@index([companyId, createdAt])
   @@index([userId])
@@ -506,6 +559,7 @@ model GeneratedArt {
   @@index([generatedCaptionId])
   @@index([scheduledPostId])
   @@index([companyImageId])
+  @@index([artTemplateId])
   @@map("generated_arts")
 }
 
@@ -528,6 +582,149 @@ model GeneratedArtwork {
   @@index([companyId, createdAt])
   @@index([userId])
   @@map("generated_artworks")
+}
+
+model Campaign {
+  id        String         @id @default(uuid())
+  companyId String
+  userId    String
+  title     String
+  objective String
+  mainTopic String
+  platform  String
+  startDate DateTime
+  endDate   DateTime
+  status    CampaignStatus @default(GENERATED)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+  company   Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items     CampaignItem[]
+
+  @@index([companyId, status])
+  @@index([companyId, createdAt])
+  @@index([userId])
+  @@map("campaigns")
+}
+
+model CampaignItem {
+  id                 String            @id @default(uuid())
+  campaignId         String
+  companyId          String
+  userId             String
+  title              String
+  contentType        String
+  postIdea           String
+  caption            String
+  cta                String
+  hashtags           String[]
+  suggestedDate      DateTime
+  artFormat          ArtFormat
+  artStyle           ArtStyle?
+  designerLevel      DesignerLevel     @default(SENIOR)
+  generatedPostId    String?
+  generatedCaptionId String?
+  generatedArtId     String?
+  scheduledPostId    String?
+  status             CampaignStatus    @default(DRAFT)
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  campaign           Campaign          @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  company            Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user               User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  generatedPost      GeneratedPost?    @relation(fields: [generatedPostId], references: [id], onDelete: SetNull)
+  generatedCaption   GeneratedCaption? @relation(fields: [generatedCaptionId], references: [id], onDelete: SetNull)
+  generatedArt       GeneratedArt?     @relation(fields: [generatedArtId], references: [id], onDelete: SetNull)
+  scheduledPost      ScheduledPost?    @relation(fields: [scheduledPostId], references: [id], onDelete: SetNull)
+
+  @@index([campaignId])
+  @@index([companyId, suggestedDate])
+  @@index([userId])
+  @@index([generatedPostId])
+  @@index([generatedCaptionId])
+  @@index([generatedArtId])
+  @@index([scheduledPostId])
+  @@map("campaign_items")
+}
+
+model AISettings {
+  id          String   @id @default(uuid())
+  provider    String   @default("OPENAI")
+  textModel   String   @default("gpt-4.1-mini")
+  imageModel  String   @default("gpt-image-1")
+  temperature Float    @default(0.7)
+  maxTokens   Int      @default(1200)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([isActive])
+  @@map("ai_settings")
+}
+
+model BusinessSegment {
+  id          String              @id @default(uuid())
+  name        String
+  slug        String              @unique
+  description String
+  isActive    Boolean             @default(true)
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+  specialties BusinessSpecialty[]
+  companies   Company[]
+  templates   ArtTemplate[]
+
+  @@index([isActive])
+  @@map("business_segments")
+}
+
+model BusinessSpecialty {
+  id               String          @id @default(uuid())
+  segmentId        String
+  name             String
+  slug             String          @unique
+  description      String
+  keywords         String[]
+  recommendedTone  String
+  commonServices   String[]
+  contentIdeas     String[]
+  visualStyle      String
+  colorSuggestions String[]
+  iconSuggestions  String[]
+  complianceNotes  String?
+  isActive         Boolean         @default(true)
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  segment          BusinessSegment @relation(fields: [segmentId], references: [id], onDelete: Cascade)
+  companies        Company[]
+  templates        ArtTemplate[]
+
+  @@index([segmentId, isActive])
+  @@map("business_specialties")
+}
+
+model ArtTemplate {
+  id            String             @id @default(uuid())
+  name          String
+  slug          String             @unique
+  segmentId     String?
+  specialtyId   String?
+  format        ArtFormat
+  description   String
+  visualStyle   String
+  layoutHints   String
+  previewUrl    String?
+  isActive      Boolean            @default(true)
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+  segment       BusinessSegment?   @relation(fields: [segmentId], references: [id], onDelete: SetNull)
+  specialty     BusinessSpecialty? @relation(fields: [specialtyId], references: [id], onDelete: SetNull)
+  generatedArts GeneratedArt[]
+
+  @@index([segmentId, isActive])
+  @@index([specialtyId, isActive])
+  @@index([format, isActive])
+  @@map("art_templates")
 }
 
 model AdminLog {

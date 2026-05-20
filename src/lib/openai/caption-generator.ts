@@ -3,6 +3,7 @@ import {
   type CompanyProfileContext,
   formatCompanyProfileContext
 } from "@/lib/company/profile-context";
+import { assertOpenAIKeyConfigured, getActiveAISettings } from "@/lib/openai/settings";
 
 export type GenerateCaptionInput = Readonly<{
   subject: string;
@@ -64,14 +65,12 @@ export function buildCaptionGeneratorPrompt(input: GenerateCaptionInput) {
 export async function generateCaptionWithOpenAI(
   input: GenerateCaptionInput
 ): Promise<GeneratedCaptionOutput> {
-  if (!process.env.OPENAI_API_KEY) {
-    throw new Error("Configure OPENAI_API_KEY para gerar legendas.");
-  }
-
+  assertOpenAIKeyConfigured();
+  const settings = await getActiveAISettings();
   const prompt = buildCaptionGeneratorPrompt(input);
 
   const completion = await openai.chat.completions.create({
-    model: process.env.OPENAI_MODEL ?? "gpt-4o-mini",
+    model: settings.textModel,
     messages: [
       {
         role: "system",
@@ -84,7 +83,8 @@ export async function generateCaptionWithOpenAI(
       }
     ],
     response_format: { type: "json_object" },
-    temperature: 0.7
+    temperature: settings.temperature,
+    max_tokens: settings.maxTokens
   });
 
   const content = completion.choices[0]?.message?.content;

@@ -3,11 +3,16 @@
 import { redirect } from "next/navigation";
 import { CompanyImageType } from "@prisma/client";
 import { auth } from "../../../../auth";
-import { getCurrentCompanyIdForUser } from "@/lib/billing/usage";
+import {
+  getCurrentCompanyIdForUser,
+  hasFeatureLimitAvailable
+} from "@/lib/billing/usage";
+import { resolveBusinessSegmentAndSpecialty } from "@/lib/business/segment-matcher";
 import { fetchDigitalPresenceFromWebsite } from "@/lib/company/digital-presence-fetcher";
 import { prisma } from "@/lib/database/prisma";
 import { analyzeCompanyPresenceWithOpenAI } from "@/lib/openai/company-profile-analyzer";
 import { analyzeDigitalPresenceWithOpenAI } from "@/lib/openai/digital-presence-analyzer";
+import { OPENAI_MISSING_KEY_MESSAGE } from "@/lib/openai/settings";
 
 function readOptionalField(formData: FormData, field: string) {
   const value = String(formData.get(field) ?? "").trim();
@@ -30,6 +35,50 @@ function readTags(formData: FormData) {
     .split(",")
     .map((tag) => tag.trim())
     .filter(Boolean);
+}
+
+async function readBusinessSelection(formData: FormData) {
+  const businessSegmentId = readOptionalField(formData, "businessSegmentId");
+  const businessSpecialtyId = readOptionalField(formData, "businessSpecialtyId");
+
+  if (!businessSegmentId && !businessSpecialtyId) {
+    return {
+      businessSegmentId: null,
+      businessSpecialtyId: null
+    };
+  }
+
+  const segment = businessSegmentId
+    ? await prisma.businessSegment.findFirst({
+        where: {
+          id: businessSegmentId,
+          isActive: true
+        },
+        select: { id: true }
+      })
+    : null;
+  const specialty = businessSpecialtyId
+    ? await prisma.businessSpecialty.findFirst({
+        where: {
+          id: businessSpecialtyId,
+          isActive: true,
+          ...(businessSegmentId ? { segmentId: businessSegmentId } : {})
+        },
+        select: {
+          id: true,
+          segmentId: true
+        }
+      })
+    : null;
+
+  if ((businessSegmentId && !segment) || (businessSpecialtyId && !specialty)) {
+    redirect("/perfil?error=invalid");
+  }
+
+  return {
+    businessSegmentId: segment?.id ?? specialty?.segmentId ?? null,
+    businessSpecialtyId: specialty?.id ?? null
+  };
 }
 
 function readImageType(formData: FormData) {
@@ -68,10 +117,12 @@ export async function saveCompanyProfileAction(formData: FormData) {
     .split(",")
     .map((color) => color.trim())
     .filter(Boolean);
+  const businessSelection = await readBusinessSelection(formData);
 
   await prisma.company.update({
     where: { id: companyId },
     data: {
+      ...businessSelection,
       website: readOptionalField(formData, "website"),
       instagram: readOptionalField(formData, "instagram"),
       description: readOptionalField(formData, "description"),
@@ -92,7 +143,13 @@ export async function saveCompanyProfileAction(formData: FormData) {
 }
 
 export async function analyzeCompanyPresenceAction(formData: FormData) {
-  const { companyId } = await getCurrentCompanyContext();
+  const { companyId, userId } = await getCurrentCompanyContext();
+  const canAnalyze = await hasFeatureLimitAvailable(companyId, "analyses");
+
+  if (!canAnalyze) {
+    redirect("/perfil?error=limit");
+  }
+
   const company = await prisma.company.findUnique({
     where: { id: companyId },
     select: {
@@ -116,13 +173,28 @@ export async function analyzeCompanyPresenceAction(formData: FormData) {
       instagram,
       collectedInfo
     });
-  } catch {
+  } catch (error) {
+    if (error instanceof Error && error.message === OPENAI_MISSING_KEY_MESSAGE) {
+      redirect("/perfil?error=openai-key");
+    }
+
     redirect("/perfil?error=openai");
   }
+
+  const businessSelection = await resolveBusinessSegmentAndSpecialty({
+    businessSegment: analysis.businessSegment,
+    businessSpecialty: analysis.businessSpecialty
+  });
 
   await prisma.company.update({
     where: { id: companyId },
     data: {
+      ...(businessSelection.businessSegmentId
+        ? { businessSegmentId: businessSelection.businessSegmentId }
+        : {}),
+      ...(businessSelection.businessSpecialtyId
+        ? { businessSpecialtyId: businessSelection.businessSpecialtyId }
+        : {}),
       website,
       instagram,
       collectedInfo,
@@ -136,12 +208,27 @@ export async function analyzeCompanyPresenceAction(formData: FormData) {
       designNotes: analysis.designNotes
     }
   });
+  await prisma.adminLog.create({
+    data: {
+      userId,
+      action: "COMPANY_ANALYSIS",
+      entity: "Company",
+      entityId: companyId,
+      metadata: { mode: "manual" }
+    }
+  });
 
   redirect("/perfil?analyzed=true");
 }
 
 export async function analyzeDigitalPresenceAutomatically(formData: FormData) {
-  const { companyId } = await getCurrentCompanyContext();
+  const { companyId, userId } = await getCurrentCompanyContext();
+  const canAnalyze = await hasFeatureLimitAvailable(companyId, "analyses");
+
+  if (!canAnalyze) {
+    redirect("/perfil?error=limit");
+  }
+
   const website = readRequiredField(formData, "website");
   const instagram = readOptionalField(formData, "instagram");
   const company = await prisma.company.findUnique({
@@ -172,13 +259,28 @@ export async function analyzeDigitalPresenceAutomatically(formData: FormData) {
       instagram,
       websiteContext: fetchedPresence.promptText
     });
-  } catch {
+  } catch (error) {
+    if (error instanceof Error && error.message === OPENAI_MISSING_KEY_MESSAGE) {
+      redirect("/perfil?error=openai-key");
+    }
+
     redirect("/perfil?error=openai");
   }
+
+  const businessSelection = await resolveBusinessSegmentAndSpecialty({
+    businessSegment: analysis.businessSegment,
+    businessSpecialty: analysis.businessSpecialty
+  });
 
   await prisma.company.update({
     where: { id: companyId },
     data: {
+      ...(businessSelection.businessSegmentId
+        ? { businessSegmentId: businessSelection.businessSegmentId }
+        : {}),
+      ...(businessSelection.businessSpecialtyId
+        ? { businessSpecialtyId: businessSelection.businessSpecialtyId }
+        : {}),
       website: fetchedPresence.url,
       instagram,
       collectedInfo: fetchedPresence.promptText,
@@ -190,6 +292,15 @@ export async function analyzeDigitalPresenceAutomatically(formData: FormData) {
       defaultCta: analysis.defaultCta,
       postIdeas: analysis.postIdeas,
       designNotes: analysis.designNotes
+    }
+  });
+  await prisma.adminLog.create({
+    data: {
+      userId,
+      action: "COMPANY_ANALYSIS",
+      entity: "Company",
+      entityId: companyId,
+      metadata: { mode: "automatic", website: fetchedPresence.url }
     }
   });
 

@@ -1,6 +1,12 @@
 import { prisma } from "@/lib/database/prisma";
 
-export type UsageFeature = "posts" | "captions" | "calendars";
+export type UsageFeature =
+  | "posts"
+  | "captions"
+  | "calendars"
+  | "arts"
+  | "campaigns"
+  | "analyses";
 
 type LimitSnapshot = Readonly<{
   used: number;
@@ -14,6 +20,9 @@ export type BillingUsageSnapshot = Readonly<{
   posts: LimitSnapshot;
   captions: LimitSnapshot;
   calendars: LimitSnapshot;
+  arts: LimitSnapshot;
+  campaigns: LimitSnapshot;
+  analyses: LimitSnapshot;
 }>;
 
 function getMonthRange(referenceDate = new Date()) {
@@ -46,6 +55,9 @@ async function getFallbackFreePlan() {
       monthlyPostLimit: 5,
       monthlyCaptionLimit: 5,
       monthlyCalendarLimit: 1,
+      monthlyArtLimit: 1,
+      monthlyAnalysisLimit: 1,
+      monthlyCampaignLimit: 0,
       isActive: true
     }
   });
@@ -86,7 +98,14 @@ export async function ensureActiveSubscription(companyId: string) {
 export async function getBillingUsage(companyId: string): Promise<BillingUsageSnapshot> {
   const subscription = await ensureActiveSubscription(companyId);
   const { start, end } = getMonthRange();
-  const [postsUsed, captionsUsed, calendarItemsCreated] = await Promise.all([
+  const [
+    postsUsed,
+    captionsUsed,
+    calendarItemsCreated,
+    artsUsed,
+    campaignsUsed,
+    analysesUsed
+  ] = await Promise.all([
     prisma.generatedPost.count({
       where: {
         companyId,
@@ -113,6 +132,35 @@ export async function getBillingUsage(companyId: string): Promise<BillingUsageSn
           lt: end
         }
       }
+    }),
+    prisma.generatedArt.count({
+      where: {
+        companyId,
+        createdAt: {
+          gte: start,
+          lt: end
+        }
+      }
+    }),
+    prisma.campaign.count({
+      where: {
+        companyId,
+        createdAt: {
+          gte: start,
+          lt: end
+        }
+      }
+    }),
+    prisma.adminLog.count({
+      where: {
+        action: "COMPANY_ANALYSIS",
+        entity: "Company",
+        entityId: companyId,
+        createdAt: {
+          gte: start,
+          lt: end
+        }
+      }
     })
   ]);
 
@@ -126,6 +174,15 @@ export async function getBillingUsage(companyId: string): Promise<BillingUsageSn
     calendars: toLimitSnapshot(
       calendarsUsed,
       subscription.plan.monthlyCalendarLimit
+    ),
+    arts: toLimitSnapshot(artsUsed, subscription.plan.monthlyArtLimit),
+    campaigns: toLimitSnapshot(
+      campaignsUsed,
+      subscription.plan.monthlyCampaignLimit
+    ),
+    analyses: toLimitSnapshot(
+      analysesUsed,
+      subscription.plan.monthlyAnalysisLimit
     )
   };
 }

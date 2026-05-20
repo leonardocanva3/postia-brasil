@@ -9,6 +9,7 @@ import {
 import { getCompanyProfileContext } from "@/lib/company/profile-context";
 import { prisma } from "@/lib/database/prisma";
 import { generateCaptionWithOpenAI } from "@/lib/openai/caption-generator";
+import { OPENAI_MISSING_KEY_MESSAGE } from "@/lib/openai/settings";
 
 function readRequiredField(formData: FormData, field: string) {
   const value = String(formData.get(field) ?? "").trim();
@@ -66,7 +67,11 @@ export async function generateCaptionAction(formData: FormData) {
 
   try {
     generatedCaption = await generateCaptionWithOpenAI(input);
-  } catch {
+  } catch (error) {
+    if (error instanceof Error && error.message === OPENAI_MISSING_KEY_MESSAGE) {
+      redirect("/legendas?error=openai-key");
+    }
+
     redirect("/legendas?error=openai");
   }
 

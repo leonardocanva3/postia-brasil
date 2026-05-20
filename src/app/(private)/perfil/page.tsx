@@ -3,6 +3,7 @@ import { CompanyImageType } from "@prisma/client";
 import { auth } from "../../../../auth";
 import { getCurrentCompanyIdForUser } from "@/lib/billing/usage";
 import { prisma } from "@/lib/database/prisma";
+import { BusinessSegmentSelects } from "@/components/business-segment-selects";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingButton } from "@/components/ui/loading-button";
@@ -43,25 +44,44 @@ async function getCompanyForCurrentUser() {
     redirect("/cadastro");
   }
 
-  const company = await prisma.company.findUnique({
-    where: { id: membership.companyId },
-    include: {
-      images: {
-        orderBy: [{ isActive: "desc" }, { createdAt: "desc" }]
+  const [company, segments, specialties] = await Promise.all([
+    prisma.company.findUnique({
+      where: { id: membership.companyId },
+      include: {
+        images: {
+          orderBy: [{ isActive: "desc" }, { createdAt: "desc" }]
+        }
       }
-    }
-  });
+    }),
+    prisma.businessSegment.findMany({
+      where: { isActive: true },
+      orderBy: { name: "asc" },
+      select: {
+        id: true,
+        name: true
+      }
+    }),
+    prisma.businessSpecialty.findMany({
+      where: { isActive: true },
+      orderBy: { name: "asc" },
+      select: {
+        id: true,
+        segmentId: true,
+        name: true
+      }
+    })
+  ]);
 
   if (!company) {
     redirect("/cadastro");
   }
 
-  return company;
+  return { company, segments, specialties };
 }
 
 export default async function PerfilPage({ searchParams }: PerfilPageProps) {
   const params = await searchParams;
-  const company = await getCompanyForCurrentUser();
+  const { company, segments, specialties } = await getCompanyForCurrentUser();
 
   return (
     <main className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-6 py-8">
@@ -102,6 +122,19 @@ export default async function PerfilPage({ searchParams }: PerfilPageProps) {
           tente novamente.
         </Notice>
       ) : null}
+      {params.error === "openai-key" ? (
+        <Notice tone="error">
+          Chave da OpenAI não configurada. Configure OPENAI_API_KEY no arquivo .env.
+        </Notice>
+      ) : null}
+      {params.error === "limit" ? (
+        <Notice tone="warning">
+          Você atingiu o limite do seu plano.{" "}
+          <a className="font-semibold underline" href="/financeiro">
+            Fazer Upgrade
+          </a>
+        </Notice>
+      ) : null}
       {params.imageSaved === "true" ? (
         <Notice tone="success">Banco de imagens atualizado com sucesso.</Notice>
       ) : null}
@@ -123,6 +156,12 @@ export default async function PerfilPage({ searchParams }: PerfilPageProps) {
           title={company.name}
         >
           <div className="space-y-5">
+            <BusinessSegmentSelects
+              defaultSegmentId={company.businessSegmentId}
+              defaultSpecialtyId={company.businessSpecialtyId}
+              segments={segments}
+              specialties={specialties}
+            />
             <label className="block">
               <span className="text-sm font-medium text-gray-800">
                 Site da empresa

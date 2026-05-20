@@ -3,6 +3,7 @@ import {
   type CompanyProfileContext,
   formatCompanyProfileContext
 } from "@/lib/company/profile-context";
+import { assertOpenAIKeyConfigured, getActiveAISettings } from "@/lib/openai/settings";
 
 export type GenerateEditorialCalendarInput = Readonly<{
   businessType: string;
@@ -87,14 +88,12 @@ export function buildEditorialCalendarPrompt(input: GenerateEditorialCalendarInp
 export async function generateEditorialCalendarWithOpenAI(
   input: GenerateEditorialCalendarInput
 ): Promise<GeneratedEditorialCalendarOutput> {
-  if (!process.env.OPENAI_API_KEY) {
-    throw new Error("Configure OPENAI_API_KEY para gerar calendario editorial.");
-  }
-
+  assertOpenAIKeyConfigured();
+  const settings = await getActiveAISettings();
   const prompt = buildEditorialCalendarPrompt(input);
 
   const completion = await openai.chat.completions.create({
-    model: process.env.OPENAI_MODEL ?? "gpt-4o-mini",
+    model: settings.textModel,
     messages: [
       {
         role: "system",
@@ -107,7 +106,8 @@ export async function generateEditorialCalendarWithOpenAI(
       }
     ],
     response_format: { type: "json_object" },
-    temperature: 0.7
+    temperature: settings.temperature,
+    max_tokens: settings.maxTokens
   });
 
   const content = completion.choices[0]?.message?.content;

@@ -1,16 +1,24 @@
-import type { ArtFormat } from "@prisma/client";
+import type { ArtFormat, ArtStyle, DesignerLevel } from "@prisma/client";
 import { openai } from "@/lib/openai/openai-client";
+import { buildArtBriefDraft } from "@/lib/art/art-brief";
+import type { RealArtTemplate } from "@/lib/art/templates";
 import {
   type CompanyProfileContext,
   formatCompanyProfileContext
 } from "@/lib/company/profile-context";
-import { getArtFormatDefinition } from "@/lib/art";
+import {
+  getArtFormatDefinition,
+  getArtStyleDefinition,
+  getDesignerLevelDefinition
+} from "@/lib/art";
 
 export type GenerateArtworkInput = Readonly<{
   subject: string;
   objective: string;
   platform: string;
   format: ArtFormat;
+  style?: ArtStyle | null;
+  designerLevel?: DesignerLevel | null;
   companyProfile?: CompanyProfileContext | null;
   selectedImage?: {
     title: string;
@@ -19,6 +27,13 @@ export type GenerateArtworkInput = Readonly<{
     tags: string[];
     imageUrl: string;
   } | null;
+  selectedTemplate?: {
+    name: string;
+    description: string;
+    visualStyle: string;
+    layoutHints: string;
+  } | null;
+  selectedRealTemplate?: RealArtTemplate | null;
 }>;
 
 function getOpenAIImageSize(format: ArtFormat) {
@@ -31,6 +46,13 @@ function getOpenAIImageSize(format: ArtFormat) {
 
 export function buildArtworkPrompt(input: GenerateArtworkInput) {
   const format = getArtFormatDefinition(input.format);
+  const designerLevel = input.designerLevel
+    ? getDesignerLevelDefinition(input.designerLevel)
+    : null;
+  const brief = buildArtBriefDraft({
+    ...input,
+    selectedTemplate: input.selectedRealTemplate
+  });
   const selectedImage = input.selectedImage
     ? [
         `Imagem especifica selecionada: ${input.selectedImage.title}`,
@@ -46,6 +68,56 @@ export function buildArtworkPrompt(input: GenerateArtworkInput) {
         .filter(Boolean)
         .join("\n")
     : "Nenhuma imagem especifica selecionada. Use o banco de imagens e o perfil como referencia conceitual.";
+  const selectedTemplate = input.selectedTemplate
+    ? [
+        `Template visual selecionado: ${input.selectedTemplate.name}`,
+        `Descricao do template: ${input.selectedTemplate.description}`,
+        `Estilo visual do template: ${input.selectedTemplate.visualStyle}`,
+        `Orientacoes de layout do template: ${input.selectedTemplate.layoutHints}`
+      ].join("\n")
+    : "Nenhum template visual selecionado. Sugira automaticamente com base no segmento, especialidade e objetivo.";
+  const selectedRealTemplate = input.selectedRealTemplate
+    ? [
+        `Template tecnico real: ${input.selectedRealTemplate.name}`,
+        `Estrutura visual: ${brief.layoutStructure}`,
+        `Logo: ${brief.logoPlacement}`,
+        `Imagem principal: ${brief.imagePlacement}`,
+        `Titulo: ${brief.titlePlacement}`,
+        `Subtitulo: ${brief.subtitlePlacement}`,
+        `CTA: ${brief.ctaPlacement}`,
+        `Nivel de texto: ${input.selectedRealTemplate.textLevel}`,
+        `Elementos graficos: ${brief.graphicElements.join(", ")}`,
+        `Regras de composicao: ${brief.compositionRules}`
+      ].join("\n")
+    : "Template tecnico real automatico ausente. Use o template conceitual e o contexto do nicho.";
+  const style = input.style ? getArtStyleDefinition(input.style) : null;
+  const selectedStyle = style
+    ? [
+        `Estilo visual escolhido: ${style.name}`,
+        `Descricao do estilo: ${style.description}`,
+        `Direcao visual: ${style.visualStyle}`,
+        `Tipografia: ${style.typographyStyle}`,
+        `Nivel de contraste: ${style.contrastLevel}`,
+        `Densidade de texto: ${style.textDensity}`,
+        `CTA recomendado: ${style.ctaIntensity}`,
+        `Comportamento visual: ${style.visualBehavior}`,
+        `Icones/elementos graficos: ${style.iconStyle}`,
+        `Composicao: ${style.compositionHints}`
+      ].join("\n")
+    : "Estilo visual automatico: adapte composicao, tipografia, hierarquia, CTA, cores e icones ao segmento, especialidade e objetivo.";
+  const designerLevelContext = designerLevel
+    ? [
+        `Nivel de designer: ${designerLevel.name}`,
+        `Complexidade visual: ${brief.visualComplexity}`,
+        `Quantidade de elementos: ${designerLevel.elementQuantity}`,
+        `Refinamento da composicao: ${designerLevel.compositionRefinement}`,
+        `Intensidade tipografica: ${designerLevel.typographyIntensity}`,
+        `Profundidade visual: ${designerLevel.visualDepth}`,
+        `Sofisticacao da direcao de arte: ${designerLevel.artDirectionSophistication}`,
+        `Sofisticacao da composicao: ${brief.compositionSophistication}`,
+        `Nivel cinematico: ${brief.cinematicLevel}`
+      ].join("\n")
+    : "Nivel de designer automatico: aplique sofisticacao adequada ao nicho e objetivo.";
 
   return [
     "Crie uma arte profissional para redes sociais em PNG, com aparencia comercial moderna e legivel.",
@@ -60,6 +132,10 @@ export function buildArtworkPrompt(input: GenerateArtworkInput) {
     `Posicao recomendada da logo: x=${format.layout.logoPosition.x}, y=${format.layout.logoPosition.y}`,
     `Area da imagem principal: x=${format.layout.mainImageArea.x}, y=${format.layout.mainImageArea.y}, largura=${format.layout.mainImageArea.width}, altura=${format.layout.mainImageArea.height}`,
     `Contexto da empresa:\n${formatCompanyProfileContext(input.companyProfile)}`,
+    selectedTemplate,
+    selectedRealTemplate,
+    selectedStyle,
+    designerLevelContext,
     selectedImage,
     "Use automaticamente logo, cores da marca, descricao, servicos, diferenciais, CTA e banco de imagens quando estiverem disponiveis no contexto.",
     "Evite textos longos. Priorize hierarquia visual, contraste, CTA claro e composicao pronta para demonstracao comercial."

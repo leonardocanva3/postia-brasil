@@ -12,8 +12,18 @@ import { SectionCard } from "@/components/ui/section-card";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { subscribeToProAction } from "./actions";
 
+type FinanceiroPageProps = Readonly<{
+  searchParams: Promise<{
+    subscription?: string;
+  }>;
+}>;
+
 function formatLimit(used: number, limit: number | null) {
   return limit === null ? `${used} / ilimitado` : `${used} / ${limit}`;
+}
+
+function formatPlanLimit(limit: number | null | undefined) {
+  return limit === null || limit === undefined ? "Ilimitado" : String(limit);
 }
 
 function formatCurrency(value: unknown) {
@@ -23,7 +33,8 @@ function formatCurrency(value: unknown) {
   }).format(Number(value));
 }
 
-export default async function FinanceiroPage() {
+export default async function FinanceiroPage({ searchParams }: FinanceiroPageProps) {
+  const params = await searchParams;
   const session = await auth();
 
   if (!session?.user?.id) {
@@ -61,7 +72,14 @@ export default async function FinanceiroPage() {
         title="Plano e assinatura"
       />
 
-      <section className="grid gap-4 lg:grid-cols-4">
+      {params.subscription === "exists" ? (
+        <div className="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-800">
+          Ja existe uma assinatura ativa ou pendente para esta empresa. Evitamos
+          criar uma nova cobrança duplicada.
+        </div>
+      ) : null}
+
+      <section className="grid gap-4 lg:grid-cols-3 xl:grid-cols-6">
         <article className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
           <p className="text-sm font-medium text-gray-600">Plano atual</p>
           <p className="mt-4 text-3xl font-semibold text-gray-950">
@@ -90,6 +108,18 @@ export default async function FinanceiroPage() {
           <p className="text-sm font-medium text-gray-600">Legendas</p>
           <p className="mt-4 text-3xl font-semibold text-gray-950">
             {formatLimit(usage.captions.used, usage.captions.limit)}
+          </p>
+        </article>
+        <article className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
+          <p className="text-sm font-medium text-gray-600">Artes</p>
+          <p className="mt-4 text-3xl font-semibold text-gray-950">
+            {formatLimit(usage.arts.used, usage.arts.limit)}
+          </p>
+        </article>
+        <article className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
+          <p className="text-sm font-medium text-gray-600">Campanhas</p>
+          <p className="mt-4 text-3xl font-semibold text-gray-950">
+            {formatLimit(usage.campaigns.used, usage.campaigns.limit)}
           </p>
         </article>
       </section>
@@ -121,7 +151,19 @@ export default async function FinanceiroPage() {
                   </div>
                   <div className="flex justify-between gap-4">
                     <dt>Calendarios</dt>
-                    <dd>{plan.monthlyCalendarLimit ?? "Ilimitado"}</dd>
+                    <dd>{formatPlanLimit(plan.monthlyCalendarLimit)}</dd>
+                  </div>
+                  <div className="flex justify-between gap-4">
+                    <dt>Artes</dt>
+                    <dd>{formatPlanLimit(plan.monthlyArtLimit)}</dd>
+                  </div>
+                  <div className="flex justify-between gap-4">
+                    <dt>Analises</dt>
+                    <dd>{formatPlanLimit(plan.monthlyAnalysisLimit)}</dd>
+                  </div>
+                  <div className="flex justify-between gap-4">
+                    <dt>Campanhas</dt>
+                    <dd>{formatPlanLimit(plan.monthlyCampaignLimit)}</dd>
                   </div>
                 </dl>
               </article>
@@ -167,6 +209,39 @@ export default async function FinanceiroPage() {
           </div>
         </SectionCard>
       </section>
+
+      <SectionCard
+        description="Comparativo comercial dos limites mensais para demonstracao e venda."
+        title="Free vs Pro"
+      >
+        <div className="mt-5 overflow-x-auto">
+          <table className="w-full min-w-[640px] border-collapse text-left text-sm">
+            <thead>
+              <tr className="border-b border-gray-200 text-gray-600">
+                <th className="py-3 pr-4 font-semibold">Recurso</th>
+                <th className="py-3 pr-4 font-semibold">Free</th>
+                <th className="py-3 pr-4 font-semibold">Pro</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100 text-gray-700">
+              {[
+                ["Posts", "5", "30"],
+                ["Legendas", "5", "30"],
+                ["Calendarios", "1", "5"],
+                ["Artes", "1", "15"],
+                ["Analises de empresa", "1", "5"],
+                ["Campanhas", "0", "3"]
+              ].map(([feature, free, pro]) => (
+                <tr key={feature}>
+                  <td className="py-3 pr-4 font-medium text-gray-950">{feature}</td>
+                  <td className="py-3 pr-4">{free}</td>
+                  <td className="py-3 pr-4">{pro}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </SectionCard>
     </main>
   );
 }

@@ -87,9 +87,17 @@ export default async function LegendasPage({ searchParams }: LegendasPageProps) 
               da OpenAI.
             </Notice>
           ) : null}
+          {params.error === "openai-key" ? (
+            <Notice tone="error">
+              Chave da OpenAI não configurada. Configure OPENAI_API_KEY no arquivo .env.
+            </Notice>
+          ) : null}
           {params.error === "limit" ? (
             <Notice tone="warning">
-              Voce atingiu o limite mensal de legendas do plano atual.
+              Você atingiu o limite do seu plano.{" "}
+              <a className="font-semibold underline" href="/financeiro">
+                Fazer Upgrade
+              </a>
             </Notice>
           ) : null}
           <div className="mt-5 space-y-5">

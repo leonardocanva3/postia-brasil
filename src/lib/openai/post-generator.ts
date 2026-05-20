@@ -3,6 +3,7 @@ import {
   type CompanyProfileContext,
   formatCompanyProfileContext
 } from "@/lib/company/profile-context";
+import { assertOpenAIKeyConfigured, getActiveAISettings } from "@/lib/openai/settings";
 
 export type GeneratePostInput = Readonly<{
   businessType: string;
@@ -64,14 +65,12 @@ export function buildPostGeneratorPrompt(input: GeneratePostInput) {
 export async function generatePostWithOpenAI(
   input: GeneratePostInput
 ): Promise<GeneratedPostOutput> {
-  if (!process.env.OPENAI_API_KEY) {
-    throw new Error("Configure OPENAI_API_KEY para gerar posts.");
-  }
-
+  assertOpenAIKeyConfigured();
+  const settings = await getActiveAISettings();
   const prompt = buildPostGeneratorPrompt(input);
 
   const completion = await openai.chat.completions.create({
-    model: process.env.OPENAI_MODEL ?? "gpt-4o-mini",
+    model: settings.textModel,
     messages: [
       {
         role: "system",
@@ -84,7 +83,8 @@ export async function generatePostWithOpenAI(
       }
     ],
     response_format: { type: "json_object" },
-    temperature: 0.7
+    temperature: settings.temperature,
+    max_tokens: settings.maxTokens
   });
 
   const content = completion.choices[0]?.message?.content;

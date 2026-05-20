@@ -7,6 +7,7 @@ const adminItems = [
   { href: "/admin/planos", label: "Planos" },
   { href: "/admin/assinaturas", label: "Assinaturas" },
   { href: "/admin/pagamentos", label: "Pagamentos" },
+  { href: "/admin/ia", label: "IA / OpenAI" },
   { href: "/admin/logs", label: "Logs" }
 ];
 

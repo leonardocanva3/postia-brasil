@@ -1,4 +1,5 @@
 import { openai } from "@/lib/openai/openai-client";
+import { assertOpenAIKeyConfigured, getActiveAISettings } from "@/lib/openai/settings";
 
 export type AnalyzeCompanyPresenceInput = Readonly<{
   companyName: string;
@@ -8,6 +9,8 @@ export type AnalyzeCompanyPresenceInput = Readonly<{
 }>;
 
 export type CompanyProfileAnalysis = Readonly<{
+  businessSegment: string;
+  businessSpecialty: string;
   description: string;
   services: string;
   differentiators: string;
@@ -27,6 +30,8 @@ function assertCompanyProfileAnalysis(value: unknown): CompanyProfileAnalysis {
 
   if (
     typeof data.description !== "string" ||
+    typeof data.businessSegment !== "string" ||
+    typeof data.businessSpecialty !== "string" ||
     typeof data.services !== "string" ||
     typeof data.differentiators !== "string" ||
     typeof data.targetAudience !== "string" ||
@@ -39,6 +44,8 @@ function assertCompanyProfileAnalysis(value: unknown): CompanyProfileAnalysis {
   }
 
   return {
+    businessSegment: data.businessSegment,
+    businessSpecialty: data.businessSpecialty,
     description: data.description,
     services: data.services,
     differentiators: data.differentiators,
@@ -53,10 +60,8 @@ function assertCompanyProfileAnalysis(value: unknown): CompanyProfileAnalysis {
 export async function analyzeCompanyPresenceWithOpenAI(
   input: AnalyzeCompanyPresenceInput
 ): Promise<CompanyProfileAnalysis> {
-  if (!process.env.OPENAI_API_KEY) {
-    throw new Error("Configure OPENAI_API_KEY para analisar o perfil da empresa.");
-  }
-
+  assertOpenAIKeyConfigured();
+  const settings = await getActiveAISettings();
   const prompt = [
     "Analise a presenca digital de uma empresa brasileira a partir de informacoes coladas manualmente pelo usuario.",
     "Nao presuma que houve scraping automatico.",
@@ -64,14 +69,14 @@ export async function analyzeCompanyPresenceWithOpenAI(
     input.website ? `Site informado: ${input.website}` : null,
     input.instagram ? `Instagram informado: ${input.instagram}` : null,
     `Informacoes coletadas do site/Instagram:\n${input.collectedInfo}`,
-    "Retorne apenas JSON valido com as chaves: description, services, differentiators, targetAudience, recommendedTone, defaultCta, postIdeas, designNotes.",
+    "Retorne apenas JSON valido com as chaves: businessSegment, businessSpecialty, description, services, differentiators, targetAudience, recommendedTone, defaultCta, postIdeas, designNotes.",
     "postIdeas deve ser um array de strings."
   ]
     .filter(Boolean)
     .join("\n");
 
   const completion = await openai.chat.completions.create({
-    model: process.env.OPENAI_MODEL ?? "gpt-4o-mini",
+    model: settings.textModel,
     messages: [
       {
         role: "system",
@@ -81,7 +86,8 @@ export async function analyzeCompanyPresenceWithOpenAI(
       { role: "user", content: prompt }
     ],
     response_format: { type: "json_object" },
-    temperature: 0.4
+    temperature: settings.temperature,
+    max_tokens: settings.maxTokens
   });
 
   const content = completion.choices[0]?.message?.content;

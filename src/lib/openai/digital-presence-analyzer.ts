@@ -1,4 +1,5 @@
 import { openai } from "@/lib/openai/openai-client";
+import { assertOpenAIKeyConfigured, getActiveAISettings } from "@/lib/openai/settings";
 
 export type AnalyzeDigitalPresenceInput = Readonly<{
   companyName: string;
@@ -8,6 +9,8 @@ export type AnalyzeDigitalPresenceInput = Readonly<{
 }>;
 
 export type DigitalPresenceAnalysis = Readonly<{
+  businessSegment: string;
+  businessSpecialty: string;
   description: string;
   services: string;
   differentiators: string;
@@ -27,6 +30,8 @@ function assertDigitalPresenceAnalysis(value: unknown): DigitalPresenceAnalysis 
 
   if (
     typeof data.description !== "string" ||
+    typeof data.businessSegment !== "string" ||
+    typeof data.businessSpecialty !== "string" ||
     typeof data.services !== "string" ||
     typeof data.differentiators !== "string" ||
     typeof data.targetAudience !== "string" ||
@@ -39,6 +44,8 @@ function assertDigitalPresenceAnalysis(value: unknown): DigitalPresenceAnalysis 
   }
 
   return {
+    businessSegment: data.businessSegment,
+    businessSpecialty: data.businessSpecialty,
     description: data.description,
     services: data.services,
     differentiators: data.differentiators,
@@ -53,10 +60,8 @@ function assertDigitalPresenceAnalysis(value: unknown): DigitalPresenceAnalysis 
 export async function analyzeDigitalPresenceWithOpenAI(
   input: AnalyzeDigitalPresenceInput
 ): Promise<DigitalPresenceAnalysis> {
-  if (!process.env.OPENAI_API_KEY) {
-    throw new Error("Configure OPENAI_API_KEY para analisar o perfil da empresa.");
-  }
-
+  assertOpenAIKeyConfigured();
+  const settings = await getActiveAISettings();
   const prompt = [
     "Analise a presenca digital publica de uma empresa brasileira a partir do HTML limpo do site informado.",
     "O Instagram nao deve ser raspado nesta etapa; use apenas o @ informado como sinal de marca e canal.",
@@ -65,14 +70,15 @@ export async function analyzeDigitalPresenceWithOpenAI(
     input.instagram ? `Instagram informado: ${input.instagram}` : null,
     `Dados coletados do site:\n${input.websiteContext}`,
     "Transforme esses sinais em um perfil de marketing pratico para orientar geradores de posts, legendas, calendario e artes.",
-    "Retorne apenas JSON valido com as chaves: description, services, differentiators, targetAudience, recommendedTone, defaultCta, postIdeas, designNotes.",
+    "Sugira tambem o segmento principal e a especialidade mais provavel usando nomes curtos e em portugues.",
+    "Retorne apenas JSON valido com as chaves: businessSegment, businessSpecialty, description, services, differentiators, targetAudience, recommendedTone, defaultCta, postIdeas, designNotes.",
     "postIdeas deve ser um array de strings com ideias objetivas de posts."
   ]
     .filter(Boolean)
     .join("\n");
 
   const completion = await openai.chat.completions.create({
-    model: process.env.OPENAI_MODEL ?? "gpt-4o-mini",
+    model: settings.textModel,
     messages: [
       {
         role: "system",
@@ -82,7 +88,8 @@ export async function analyzeDigitalPresenceWithOpenAI(
       { role: "user", content: prompt }
     ],
     response_format: { type: "json_object" },
-    temperature: 0.35
+    temperature: settings.temperature,
+    max_tokens: settings.maxTokens
   });
 
   const content = completion.choices[0]?.message?.content;

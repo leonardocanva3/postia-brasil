@@ -11,6 +11,7 @@ import {
 import { getCompanyProfileContext } from "@/lib/company/profile-context";
 import { prisma } from "@/lib/database/prisma";
 import { generateEditorialCalendarWithOpenAI } from "@/lib/openai/editorial-calendar-generator";
+import { OPENAI_MISSING_KEY_MESSAGE } from "@/lib/openai/settings";
 
 function readRequiredField(formData: FormData, field: string) {
   const value = String(formData.get(field) ?? "").trim();
@@ -96,7 +97,11 @@ export async function generateEditorialCalendarAction(formData: FormData) {
 
   try {
     generatedCalendar = await generateEditorialCalendarWithOpenAI(input);
-  } catch {
+  } catch (error) {
+    if (error instanceof Error && error.message === OPENAI_MISSING_KEY_MESSAGE) {
+      redirect("/calendario?error=openai-key");
+    }
+
     redirect("/calendario?error=openai");
   }
 
