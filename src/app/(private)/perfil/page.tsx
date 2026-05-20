@@ -21,6 +21,8 @@ import {
   saveCompanyProfileAction
 } from "./actions";
 
+export const dynamic = "force-dynamic";
+
 type PerfilPageProps = Readonly<{
   searchParams: Promise<{
     saved?: string;
@@ -44,7 +46,7 @@ async function getCompanyForCurrentUser() {
     redirect("/cadastro");
   }
 
-  const [company, segments, specialties] = await Promise.all([
+  const [company, rawSegments, rawSpecialties] = await Promise.all([
     prisma.company.findUnique({
       where: { id: membership.companyId },
       include: {
@@ -75,6 +77,16 @@ async function getCompanyForCurrentUser() {
   if (!company) {
     redirect("/cadastro");
   }
+
+  const segments = rawSegments.map((segment) => ({
+    id: String(segment.id),
+    name: segment.name
+  }));
+  const specialties = rawSpecialties.map((specialty) => ({
+    id: String(specialty.id),
+    segmentId: String(specialty.segmentId),
+    name: specialty.name
+  }));
 
   return { company, segments, specialties };
 }

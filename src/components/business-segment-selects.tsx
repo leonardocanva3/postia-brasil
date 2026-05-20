@@ -26,14 +26,46 @@ export function BusinessSegmentSelects({
   defaultSegmentId,
   defaultSpecialtyId
 }: BusinessSegmentSelectsProps) {
-  const [segmentId, setSegmentId] = useState(defaultSegmentId ?? "");
+  const safeSegments = useMemo(
+    () => (Array.isArray(segments) ? segments : []),
+    [segments]
+  );
+  const safeSpecialties = useMemo(
+    () => (Array.isArray(specialties) ? specialties : []),
+    [specialties]
+  );
+  const renderedSegments = useMemo(
+    () =>
+      safeSegments.filter(
+        (segment) =>
+          typeof segment.id === "string" &&
+          typeof segment.name === "string" &&
+          segment.id.trim() &&
+          segment.name.trim()
+      ),
+    [safeSegments]
+  );
+
+  const initialSegmentId = renderedSegments.some(
+    (segment) => segment.id === defaultSegmentId
+  )
+    ? defaultSegmentId ?? ""
+    : "";
+  const [segmentId, setSegmentId] = useState(initialSegmentId);
   const [specialtyId, setSpecialtyId] = useState(defaultSpecialtyId ?? "");
   const filteredSpecialties = useMemo(
     () =>
       segmentId
-        ? specialties.filter((specialty) => specialty.segmentId === segmentId)
+        ? safeSpecialties.filter((specialty) => specialty.segmentId === segmentId)
         : [],
-    [segmentId, specialties]
+    [segmentId, safeSpecialties]
+  );
+  const renderedSpecialties = filteredSpecialties.filter(
+    (specialty) =>
+      typeof specialty.id === "string" &&
+      typeof specialty.name === "string" &&
+      specialty.id.trim() &&
+      specialty.name.trim()
   );
 
   return (
@@ -52,7 +84,7 @@ export function BusinessSegmentSelects({
           value={segmentId}
         >
           <option value="">Selecione um segmento</option>
-          {segments.map((segment) => (
+          {renderedSegments.map((segment) => (
             <option key={segment.id} value={segment.id}>
               {segment.name}
             </option>
@@ -69,7 +101,7 @@ export function BusinessSegmentSelects({
           value={specialtyId}
         >
           <option value="">Selecione uma especialidade</option>
-          {filteredSpecialties.map((specialty) => (
+          {renderedSpecialties.map((specialty) => (
             <option key={specialty.id} value={specialty.id}>
               {specialty.name}
             </option>

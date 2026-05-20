@@ -28,11 +28,17 @@ export default function LoginPage() {
             type="password"
           />
         </label>
-        <div className="flex items-center justify-between gap-4 text-sm">
-          <Link className="font-medium text-emerald-700 hover:text-emerald-800" href="/esqueci-senha">
+        <div className="flex flex-col gap-2 text-sm sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+          <Link
+            className="font-medium text-emerald-700 hover:text-emerald-800"
+            href="/esqueci-senha"
+          >
             Esqueci minha senha
           </Link>
-          <Link className="font-medium text-gray-700 hover:text-gray-950" href="/cadastro">
+          <Link
+            className="font-medium text-gray-700 hover:text-gray-950"
+            href="/cadastro"
+          >
             Criar conta
           </Link>
         </div>

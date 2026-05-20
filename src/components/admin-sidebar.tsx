@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { AppLogo } from "@/components/app-logo";
 
 const adminItems = [
   { href: "/admin", label: "Visao Geral" },
@@ -13,18 +14,16 @@ const adminItems = [
 
 export function AdminSidebar() {
   return (
-    <aside className="flex min-h-screen w-72 flex-col border-r border-gray-200 bg-gray-950 px-5 py-6 text-white">
+    <aside className="flex w-full flex-col border-b border-gray-800 bg-gray-950 px-5 py-5 text-white lg:min-h-screen lg:w-72 lg:border-b-0 lg:border-r lg:py-6">
       <Link href="/admin" className="block">
-        <p className="text-sm font-medium uppercase tracking-wide text-emerald-300">
-          PostIA Brasil
-        </p>
-        <p className="mt-2 text-xl font-semibold">Admin</p>
+        <AppLogo className="[&>span]:text-white" size="sm" />
+        <p className="mt-2 text-sm font-medium text-emerald-300">Admin</p>
       </Link>
 
-      <nav className="mt-10 space-y-1">
+      <nav className="mt-6 flex gap-1 overflow-x-auto pb-1 lg:mt-10 lg:block lg:space-y-1 lg:overflow-visible lg:pb-0">
         {adminItems.map((item) => (
           <Link
-            className="block rounded-md px-3 py-2 text-sm font-medium text-gray-300 transition hover:bg-white/10 hover:text-white"
+            className="block shrink-0 rounded-md px-3 py-2 text-sm font-medium text-gray-300 transition hover:bg-white/10 hover:text-white"
             href={item.href}
             key={item.href}
           >

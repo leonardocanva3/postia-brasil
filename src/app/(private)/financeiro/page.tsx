@@ -74,8 +74,8 @@ export default async function FinanceiroPage({ searchParams }: FinanceiroPagePro
 
       {params.subscription === "exists" ? (
         <div className="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-800">
-          Ja existe uma assinatura ativa ou pendente para esta empresa. Evitamos
-          criar uma nova cobrança duplicada.
+          Esta empresa ja possui assinatura ativa ou pendente. Evitamos criar
+          uma nova cobrança duplicada.
         </div>
       ) : null}
 
