@@ -34,6 +34,18 @@ type PerfilPageProps = Readonly<{
   }>;
 }>;
 
+function isDisplayableImageUrl(value: string | null | undefined) {
+  if (!value) {
+    return false;
+  }
+
+  return (
+    value.startsWith("/") ||
+    value.startsWith("http://") ||
+    value.startsWith("https://")
+  );
+}
+
 async function getCompanyForCurrentUser() {
   const session = await auth();
 
@@ -157,18 +169,18 @@ export default async function PerfilPage({ searchParams }: PerfilPageProps) {
           de ativar uma nova.
         </Notice>
       ) : null}
-      {params.error === "image-invalid" ? (
-        <Notice tone="error">
-          Nao foi possivel salvar a imagem. Use PNG, JPG ou WEBP ate 5MB.
-        </Notice>
-      ) : null}
-      {params.error === "upload-invalid" ? (
-        <Notice tone="error">
-          Nao foi possivel salvar o arquivo. Use PNG, JPG ou WEBP ate 5MB.
-        </Notice>
-      ) : null}
+            {params.error === "image-invalid" ? (
+              <Notice tone="error">
+                Imagem muito grande. Envie uma imagem PNG, JPG ou WEBP com até 5MB.
+              </Notice>
+            ) : null}
+            {params.error === "upload-invalid" ? (
+              <Notice tone="error">
+                Imagem muito grande. Envie uma imagem PNG, JPG ou WEBP com até 5MB.
+              </Notice>
+            ) : null}
 
-      <form className="grid gap-6 xl:grid-cols-[1fr_420px]" encType="multipart/form-data">
+      <form className="grid gap-6 xl:grid-cols-[1fr_420px]">
         <SectionCard
           description="Essas informacoes entram automaticamente nos prompts de posts, legendas e calendario."
           title={company.name}
@@ -375,11 +387,7 @@ export default async function PerfilPage({ searchParams }: PerfilPageProps) {
           description="Envie imagens do computador ou use uma URL como alternativa avancada."
           title="Banco de Imagens"
         >
-          <form
-            action={createCompanyImageAction}
-            className="space-y-5"
-            encType="multipart/form-data"
-          >
+          <form action={createCompanyImageAction} className="space-y-5">
             <label className="block">
               <span className="text-sm font-medium text-gray-800">Titulo</span>
               <input
@@ -461,12 +469,18 @@ export default async function PerfilPage({ searchParams }: PerfilPageProps) {
                   className="grid gap-4 rounded-md border border-gray-200 p-4 lg:grid-cols-[160px_1fr]"
                   key={image.id}
                 >
-                  <div
-                    aria-label={image.title}
-                    className="aspect-video w-full rounded-md border border-gray-200 bg-gray-100 bg-cover bg-center"
-                    role="img"
-                    style={{ backgroundImage: `url(${image.imageUrl})` }}
-                  />
+                  {isDisplayableImageUrl(image.imageUrl) ? (
+                    <div
+                      aria-label={image.title}
+                      className="aspect-video w-full rounded-md border border-gray-200 bg-gray-100 bg-cover bg-center"
+                      role="img"
+                      style={{ backgroundImage: `url(${image.imageUrl})` }}
+                    />
+                  ) : (
+                    <div className="flex aspect-video w-full items-center justify-center rounded-md border border-dashed border-gray-300 bg-gray-50 px-4 text-center text-sm text-gray-500">
+                      Imagem sem preview disponivel
+                    </div>
+                  )}
                   <div>
                     <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
                       <div>
@@ -478,7 +492,6 @@ export default async function PerfilPage({ searchParams }: PerfilPageProps) {
                     <form
                       action={updateCompanyImageAction}
                       className="grid gap-3 md:grid-cols-2"
-                      encType="multipart/form-data"
                     >
                       <input name="imageId" type="hidden" value={image.id} />
                       <label className="block">

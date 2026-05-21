@@ -23,7 +23,7 @@ function normalizeFilename(value: string) {
   const parsed = path.parse(value);
   const baseName = parsed.name || "imagem";
 
-  return baseName
+  const normalizedName = baseName
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
@@ -31,6 +31,8 @@ function normalizeFilename(value: string) {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/(^-|-$)+/g, "")
     .slice(0, 80);
+
+  return normalizedName || "imagem";
 }
 
 export function validateImageFile(file: File): ImageUploadValidationResult {
@@ -56,7 +58,7 @@ export function validateImageFile(file: File): ImageUploadValidationResult {
 }
 
 export function generatePublicImageUrl(filename: string) {
-  return `/uploads/company-images/${filename}`;
+  return `/uploads/company-images/${filename.replaceAll("\\", "/")}`;
 }
 
 export async function saveCompanyImageUpload(

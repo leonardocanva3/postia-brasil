@@ -34,7 +34,11 @@ function readRequiredField(formData: FormData, field: string) {
 function readOptionalFile(formData: FormData, field: string) {
   const value = formData.get(field);
 
-  if (!(value instanceof File) || value.size === 0) {
+  if (
+    typeof File === "undefined" ||
+    !(value instanceof File) ||
+    value.size === 0
+  ) {
     return null;
   }
 

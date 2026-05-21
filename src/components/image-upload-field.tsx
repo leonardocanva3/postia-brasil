@@ -10,6 +10,19 @@ type ImageUploadFieldProps = Readonly<{
   compact?: boolean;
 }>;
 
+function isPreviewUrl(value: string | null | undefined) {
+  if (!value) {
+    return false;
+  }
+
+  return (
+    value.startsWith("blob:") ||
+    value.startsWith("/") ||
+    value.startsWith("http://") ||
+    value.startsWith("https://")
+  );
+}
+
 export function ImageUploadField({
   name,
   label,
@@ -18,7 +31,9 @@ export function ImageUploadField({
   compact = false
 }: ImageUploadFieldProps) {
   const [selectedFileName, setSelectedFileName] = useState("");
-  const [previewUrl, setPreviewUrl] = useState(defaultPreviewUrl ?? "");
+  const [previewUrl, setPreviewUrl] = useState(
+    isPreviewUrl(defaultPreviewUrl) ? String(defaultPreviewUrl) : ""
+  );
 
   useEffect(() => {
     return () => {
@@ -43,12 +58,18 @@ export function ImageUploadField({
 
               if (!file) {
                 setSelectedFileName("");
-                setPreviewUrl(defaultPreviewUrl ?? "");
+                setPreviewUrl(
+                  isPreviewUrl(defaultPreviewUrl) ? String(defaultPreviewUrl) : ""
+                );
                 return;
               }
 
               setSelectedFileName(file.name);
-              setPreviewUrl(URL.createObjectURL(file));
+              try {
+                setPreviewUrl(URL.createObjectURL(file));
+              } catch {
+                setPreviewUrl("");
+              }
             }}
             type="file"
           />
@@ -58,7 +79,7 @@ export function ImageUploadField({
         </span>
       </div>
       <p className="mt-2 text-xs text-gray-500">PNG, JPG ou WEBP ate 5MB.</p>
-      {previewUrl ? (
+      {isPreviewUrl(previewUrl) ? (
         <div
           className={`relative mt-3 overflow-hidden rounded-md border border-gray-200 bg-gray-100 ${
             compact ? "size-20" : "h-32 w-full max-w-xs"
