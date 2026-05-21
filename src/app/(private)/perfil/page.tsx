@@ -6,6 +6,7 @@ import { prisma } from "@/lib/database/prisma";
 import { BusinessSegmentSelects } from "@/components/business-segment-selects";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { EmptyState } from "@/components/ui/empty-state";
+import { ImageUploadField } from "@/components/image-upload-field";
 import { LoadingButton } from "@/components/ui/loading-button";
 import { Notice } from "@/components/ui/notice";
 import { PageHeader } from "@/components/ui/page-header";
@@ -158,11 +159,16 @@ export default async function PerfilPage({ searchParams }: PerfilPageProps) {
       ) : null}
       {params.error === "image-invalid" ? (
         <Notice tone="error">
-          Nao foi possivel salvar a imagem. Revise os campos e tente novamente.
+          Nao foi possivel salvar a imagem. Use PNG, JPG ou WEBP ate 5MB.
+        </Notice>
+      ) : null}
+      {params.error === "upload-invalid" ? (
+        <Notice tone="error">
+          Nao foi possivel salvar o arquivo. Use PNG, JPG ou WEBP ate 5MB.
         </Notice>
       ) : null}
 
-      <form className="grid gap-6 xl:grid-cols-[1fr_420px]">
+      <form className="grid gap-6 xl:grid-cols-[1fr_420px]" encType="multipart/form-data">
         <SectionCard
           description="Essas informacoes entram automaticamente nos prompts de posts, legendas e calendario."
           title={company.name}
@@ -319,16 +325,26 @@ export default async function PerfilPage({ searchParams }: PerfilPageProps) {
                 type="text"
               />
             </label>
-            <label className="block">
-              <span className="text-sm font-medium text-gray-800">Logo</span>
-              <input
-                className="mt-2 w-full rounded-md border border-gray-300 px-3 py-2 text-gray-950 outline-none transition focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
-                defaultValue={company.logoUrl ?? ""}
-                name="logoUrl"
-                placeholder="https://.../logo.png"
-                type="url"
+            <div className="space-y-3">
+              <ImageUploadField
+                buttonLabel="Selecionar logo"
+                defaultPreviewUrl={company.logoUrl}
+                label="Logo"
+                name="logoFile"
               />
-            </label>
+              <label className="block">
+                <span className="text-sm font-medium text-gray-800">
+                  URL da logo alternativa
+                </span>
+                <input
+                  className="mt-2 w-full rounded-md border border-gray-300 px-3 py-2 text-gray-950 outline-none transition focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
+                  defaultValue={company.logoUrl ?? ""}
+                  name="logoUrl"
+                  placeholder="https://.../logo.png"
+                  type="url"
+                />
+              </label>
+            </div>
             <label className="block">
               <span className="text-sm font-medium text-gray-800">
                 Ideias de posts
@@ -356,10 +372,14 @@ export default async function PerfilPage({ searchParams }: PerfilPageProps) {
 
       <section className="grid gap-6 xl:grid-cols-[420px_1fr]">
         <SectionCard
-          description="Nesta etapa, cadastre imagens por URL. Upload e biblioteca de arquivos ficam preparados para uma fase futura."
+          description="Envie imagens do computador ou use uma URL como alternativa avancada."
           title="Banco de Imagens"
         >
-          <form action={createCompanyImageAction} className="space-y-5">
+          <form
+            action={createCompanyImageAction}
+            className="space-y-5"
+            encType="multipart/form-data"
+          >
             <label className="block">
               <span className="text-sm font-medium text-gray-800">Titulo</span>
               <input
@@ -383,13 +403,19 @@ export default async function PerfilPage({ searchParams }: PerfilPageProps) {
                 ))}
               </select>
             </label>
+            <ImageUploadField
+              buttonLabel="Selecionar imagem"
+              label="Imagem"
+              name="imageFile"
+            />
             <label className="block">
-              <span className="text-sm font-medium text-gray-800">URL da imagem</span>
+              <span className="text-sm font-medium text-gray-800">
+                URL da imagem alternativa
+              </span>
               <input
                 className="mt-2 w-full rounded-md border border-gray-300 px-3 py-2 text-gray-950 outline-none transition focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
                 name="imageUrl"
                 placeholder="https://..."
-                required
                 type="url"
               />
             </label>
@@ -452,6 +478,7 @@ export default async function PerfilPage({ searchParams }: PerfilPageProps) {
                     <form
                       action={updateCompanyImageAction}
                       className="grid gap-3 md:grid-cols-2"
+                      encType="multipart/form-data"
                     >
                       <input name="imageId" type="hidden" value={image.id} />
                       <label className="block">
@@ -483,15 +510,23 @@ export default async function PerfilPage({ searchParams }: PerfilPageProps) {
                           ))}
                         </select>
                       </label>
+                      <div className="md:col-span-2">
+                        <ImageUploadField
+                          buttonLabel="Selecionar imagem"
+                          compact
+                          defaultPreviewUrl={image.imageUrl}
+                          label="Trocar imagem por upload"
+                          name="imageFile"
+                        />
+                      </div>
                       <label className="block md:col-span-2">
                         <span className="text-xs font-medium text-gray-600">
-                          URL
+                          URL alternativa
                         </span>
                         <input
                           className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-950 outline-none transition focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
                           defaultValue={image.imageUrl}
                           name="imageUrl"
-                          required
                           type="url"
                         />
                       </label>

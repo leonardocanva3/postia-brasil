@@ -13,6 +13,7 @@ import { prisma } from "@/lib/database/prisma";
 import { analyzeCompanyPresenceWithOpenAI } from "@/lib/openai/company-profile-analyzer";
 import { analyzeDigitalPresenceWithOpenAI } from "@/lib/openai/digital-presence-analyzer";
 import { OPENAI_MISSING_KEY_MESSAGE } from "@/lib/openai/settings";
+import { saveCompanyImageUpload } from "@/lib/uploads/image-upload";
 
 function readOptionalField(formData: FormData, field: string) {
   const value = String(formData.get(field) ?? "").trim();
@@ -28,6 +29,42 @@ function readRequiredField(formData: FormData, field: string) {
   }
 
   return value;
+}
+
+function readOptionalFile(formData: FormData, field: string) {
+  const value = formData.get(field);
+
+  if (!(value instanceof File) || value.size === 0) {
+    return null;
+  }
+
+  return value;
+}
+
+async function readUploadedImageOrUrl(
+  formData: FormData,
+  companyId: string,
+  fileField: string,
+  urlField: string,
+  requiredError = "image-invalid"
+) {
+  const file = readOptionalFile(formData, fileField);
+
+  if (file) {
+    try {
+      return await saveCompanyImageUpload(companyId, file);
+    } catch {
+      redirect(`/perfil?error=${requiredError}`);
+    }
+  }
+
+  const url = readOptionalField(formData, urlField);
+
+  if (!url) {
+    redirect(`/perfil?error=${requiredError}`);
+  }
+
+  return url;
 }
 
 function readTags(formData: FormData) {
@@ -118,6 +155,16 @@ export async function saveCompanyProfileAction(formData: FormData) {
     .map((color) => color.trim())
     .filter(Boolean);
   const businessSelection = await readBusinessSelection(formData);
+  const logoFile = readOptionalFile(formData, "logoFile");
+  let logoUrl = readOptionalField(formData, "logoUrl");
+
+  if (logoFile) {
+    try {
+      logoUrl = await saveCompanyImageUpload(companyId, logoFile);
+    } catch {
+      redirect("/perfil?error=upload-invalid");
+    }
+  }
 
   await prisma.company.update({
     where: { id: companyId },
@@ -132,7 +179,7 @@ export async function saveCompanyProfileAction(formData: FormData) {
       recommendedTone: readOptionalField(formData, "recommendedTone"),
       defaultCta: readOptionalField(formData, "defaultCta"),
       brandColors,
-      logoUrl: readOptionalField(formData, "logoUrl"),
+      logoUrl,
       postIdeas,
       designNotes: readOptionalField(formData, "designNotes"),
       collectedInfo: readOptionalField(formData, "collectedInfo")
@@ -320,6 +367,13 @@ export async function createCompanyImageAction(formData: FormData) {
     redirect("/perfil?error=image-limit");
   }
 
+  const imageUrl = await readUploadedImageOrUrl(
+    formData,
+    companyId,
+    "imageFile",
+    "imageUrl"
+  );
+
   await prisma.companyImage.create({
     data: {
       companyId,
@@ -327,7 +381,7 @@ export async function createCompanyImageAction(formData: FormData) {
       type: readImageType(formData),
       description: readOptionalField(formData, "description"),
       tags: readTags(formData),
-      imageUrl: readRequiredField(formData, "imageUrl"),
+      imageUrl,
       isActive: formData.get("isActive") === "on"
     }
   });
@@ -358,6 +412,13 @@ export async function updateCompanyImageAction(formData: FormData) {
     }
   }
 
+  const imageUrl = await readUploadedImageOrUrl(
+    formData,
+    companyId,
+    "imageFile",
+    "imageUrl"
+  );
+
   await prisma.companyImage.updateMany({
     where: { id: imageId, companyId },
     data: {
@@ -365,7 +426,7 @@ export async function updateCompanyImageAction(formData: FormData) {
       type: readImageType(formData),
       description: readOptionalField(formData, "description"),
       tags: readTags(formData),
-      imageUrl: readRequiredField(formData, "imageUrl"),
+      imageUrl,
       isActive: shouldBeActive
     }
   });
